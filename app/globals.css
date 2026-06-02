@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #1e293b;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #00d4ff;
+  --primary-foreground: #000000;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #e2e8f0;
+  --muted-foreground: #64748b;
+  --accent: #ff6b00;
+  --accent-foreground: #000000;
+  --destructive: #ef4444;
+  --destructive-foreground: #000000;
+  --success: #22c55e;
+  --success-foreground: #000000;
+  --warning: #f59e0b;
+  --warning-foreground: #000000;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #00d4ff;
+}
+
+.dark {
+  --background: #0a0a0f;
+  --foreground: #e2e8f0;
+  --card: #13131f;
+  --card-foreground: #f1f5f9;
+  --popover: #13131f;
+  --popover-foreground: #f1f5f9;
+  --primary: #00d4ff;
+  --primary-foreground: #000000;
+  --secondary: #1e1e2e;
+  --secondary-foreground: #e2e8f0;
+  --muted: #27273a;
+  --muted-foreground: #94a3b8;
+  --accent: #ff6b00;
+  --accent-foreground: #000000;
+  --destructive: #ef4444;
+  --destructive-foreground: #000000;
+  --success: #22c55e;
+  --success-foreground: #000000;
+  --warning: #f59e0b;
+  --warning-foreground: #000000;
+  --border: #27273a;
+  --input: #27273a;
+  --ring: #00d4ff;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── Page Load Fade-In ── */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+main {
+  animation: fadeInUp 0.4s ease-out both;
+}
+
+/* ── Card Hover Effects ── */
+[data-slot="card"] {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-slot="card"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08);
+}
+
+.dark [data-slot="card"]:hover {
+  box-shadow: 0 8px 24px -4px rgba(0, 212, 255, 0.06);
+}
+
+/* ── Smooth Transitions ── */
+[data-slot="button"],
+[data-slot="badge"],
+[data-slot="tabs-trigger"] {
+  transition: all 0.15s ease;
+}
+
+/* ── Navigation Link Hover Glow ── */
+nav a {
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* ── Image Hover Scale ── */
+img {
+  transition: transform 0.3s ease;
+}
+
+/* ── Staggered List Item Entrance ── */
+@keyframes fadeInList {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Apply staggered animation to list children via JS or inline styles */
+/* Base class for staggered children */
+.stagger-fade > * {
+  animation: fadeInList 0.35s ease-out both;
+}
+
+.stagger-fade > *:nth-child(1) { animation-delay: 0.03s; }
+.stagger-fade > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger-fade > *:nth-child(3) { animation-delay: 0.09s; }
+.stagger-fade > *:nth-child(4) { animation-delay: 0.12s; }
+.stagger-fade > *:nth-child(5) { animation-delay: 0.15s; }
+.stagger-fade > *:nth-child(6) { animation-delay: 0.18s; }
+.stagger-fade > *:nth-child(7) { animation-delay: 0.21s; }
+.stagger-fade > *:nth-child(8) { animation-delay: 0.24s; }
+.stagger-fade > *:nth-child(9) { animation-delay: 0.27s; }
+.stagger-fade > *:nth-child(10) { animation-delay: 0.30s; }
+.stagger-fade > *:nth-child(n+11) { animation-delay: 0.33s; }
