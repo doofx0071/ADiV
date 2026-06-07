@@ -83,7 +83,7 @@ export function Navigation() {
           <SheetContent side="left" className="w-64">
             <div className="flex flex-col gap-4 py-4">
               <Link href="/dashboard" className="flex items-center px-2">
-                <img src={logoSrc} alt="AdiV" className="h-10 w-auto" />
+                <img src={logoSrc} alt="AdiV" className="h-14 w-auto" />
               </Link>
               <nav className="flex flex-col gap-1">
                 {NAV_ITEMS.map((item) => (
@@ -96,7 +96,7 @@ export function Navigation() {
 
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center mr-4">
-          <img src={logoSrc} alt="AdiV logo" className="h-10 w-auto" />
+          <img src={logoSrc} alt="AdiV logo" className="h-14 w-auto" />
         </Link>
 
         {/* Desktop nav */}
