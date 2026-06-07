@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useTheme } from "@/components/ui/theme-provider";
 import {
   LayoutDashboard,
   Wrench,
@@ -59,6 +60,9 @@ function NavLink({
 
 export function Navigation() {
   const pathname = usePathname();
+  const { resolvedTheme } = useTheme();
+
+  const logoSrc = resolvedTheme === "dark" ? "/adv-logo-dark.svg" : "/adv-logo.svg";
 
   // Don't show nav on setup page
   if (pathname === "/setup") {
@@ -78,9 +82,8 @@ export function Navigation() {
           </SheetTrigger>
           <SheetContent side="left" className="w-64">
             <div className="flex flex-col gap-4 py-4">
-              <Link href="/dashboard" className="flex items-center gap-2 px-2">
-                <Wrench className="h-5 w-5 text-primary" />
-                <span className="font-bold">AdiV</span>
+              <Link href="/dashboard" className="flex items-center px-2">
+                <img src={logoSrc} alt="AdiV" className="h-10 w-auto" />
               </Link>
               <nav className="flex flex-col gap-1">
                 {NAV_ITEMS.map((item) => (
@@ -92,9 +95,8 @@ export function Navigation() {
         </Sheet>
 
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2 mr-4">
-          <Wrench className="h-5 w-5 text-primary hidden md:block" />
-          <span className="font-bold text-lg">AdiV</span>
+        <Link href="/dashboard" className="flex items-center mr-4">
+          <img src={logoSrc} alt="AdiV logo" className="h-10 w-auto" />
         </Link>
 
         {/* Desktop nav */}

@@ -50,7 +50,7 @@ export function OdometerChart() {
           data={data}
           index="date"
           categories={["odometer"]}
-          colors={["cyan"]}
+          colors={["red"]}
           yAxisWidth={80}
           valueFormatter={(value) => `${value.toLocaleString()} km`}
           showLegend={false}

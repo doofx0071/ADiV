@@ -23,8 +23,8 @@ describe("themeColors", () => {
   it("light mode uses correct cyber-moto colors", () => {
     expect(themeColors.light.background).toBe("#f8fafc");
     expect(themeColors.light.card).toBe("#ffffff");
-    expect(themeColors.light.primary).toBe("#00d4ff");
-    expect(themeColors.light.accent).toBe("#ff6b00");
+    expect(themeColors.light.primary).toBe("#e62025");
+    expect(themeColors.light.accent).toBe("#e62025");
     expect(themeColors.light.destructive).toBe("#ef4444");
     expect(themeColors.light.success).toBe("#22c55e");
     expect(themeColors.light.warning).toBe("#f59e0b");
@@ -33,9 +33,9 @@ describe("themeColors", () => {
   it("dark mode uses correct cyber-moto colors", () => {
     expect(themeColors.dark.background).toBe("#0a0a0f");
     expect(themeColors.dark.card).toBe("#13131f");
-    expect(themeColors.dark.primary).toBe("#00d4ff");
-    expect(themeColors.dark.accent).toBe("#ff6b00");
-    expect(themeColors.dark.destructive).toBe("#ef4444");
+    expect(themeColors.dark.primary).toBe("#e62025");
+    expect(themeColors.dark.accent).toBe("#e62025");
+    expect(themeColors.dark.destructive).toBe("#dc2626");
     expect(themeColors.dark.success).toBe("#22c55e");
     expect(themeColors.dark.warning).toBe("#f59e0b");
   });
@@ -67,8 +67,8 @@ describe("statusColors", () => {
     expect(statusColors.overdue.background).toBe("#ef4444");
   });
 
-  it("completed is cyan", () => {
-    expect(statusColors.completed.background).toBe("#00d4ff");
+  it("completed is red", () => {
+    expect(statusColors.completed.background).toBe("#e62025");
   });
 });
 

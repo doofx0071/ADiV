@@ -60,7 +60,7 @@ export function FuelEfficiencyChart() {
           data={data}
           index="date"
           categories={["efficiency"]}
-          colors={["cyan"]}
+          colors={["red"]}
           yAxisWidth={60}
           valueFormatter={(value) => `${value} km/L`}
           showLegend={false}
