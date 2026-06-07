@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PageHeader } from "@/components/layout/page-header";
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
@@ -14,12 +14,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function DashboardPage() {
   const router = useRouter();
   const bike = useQuery(api.bike.getBike);
+  const checkAchievements = useMutation(api.achievements.checkAchievements);
+  const checkedRef = useRef(false);
 
   useEffect(() => {
     if (bike === null) {
       router.replace("/setup");
     }
   }, [bike, router]);
+
+  // Auto-check achievements once when bike is loaded
+  useEffect(() => {
+    if (bike && !checkedRef.current) {
+      checkedRef.current = true;
+      checkAchievements().catch(() => {
+        // Silently ignore — achievements are non-critical
+      });
+    }
+  }, [bike, checkAchievements]);
 
   if (bike === undefined) {
     return (
