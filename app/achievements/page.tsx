@@ -5,7 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ACHIEVEMENT_DEFS } from "@/convex/achievements";
+import { ACHIEVEMENT_DEFS } from "@/lib/achievements";
 import {
   Wrench,
   Flame,

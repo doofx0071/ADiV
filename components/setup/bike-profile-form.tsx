@@ -74,7 +74,7 @@ export function BikeProfileForm() {
       oilType: "SAE 10W-30 JASO MB",
       oilCapacity: "0.75",
       coolantCapacity: "0.50",
-      batteryType: "YTZ8V 12V 7.0Ah",
+      batteryType: "12V-5Ah MF-WET",
       sparkPlugType: "NGK LMAR8L-9",
       fuelTankCapacity: "8.1",
     },
