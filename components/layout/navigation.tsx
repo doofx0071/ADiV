@@ -7,10 +7,6 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useTheme } from "@/components/ui/theme-provider";
 import {
   LayoutDashboard,
-  Wrench,
-  Route,
-  Fuel,
-  Wallet,
   History,
   Award,
   Download,
@@ -20,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -46,13 +43,13 @@ function NavLink({
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        "flex items-center gap-3 rounded-[var(--radius)] px-3 py-2.5 text-sm font-medium transition-all duration-150",
         isActive
-          ? "bg-primary text-primary-foreground"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "text-foreground/70 hover:bg-muted hover:text-foreground"
       )}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-5 w-5 shrink-0" />
       {label}
     </Link>
   );
@@ -62,55 +59,63 @@ export function Navigation() {
   const pathname = usePathname();
   const { resolvedTheme } = useTheme();
 
-  const logoSrc = resolvedTheme === "dark" ? "/adv-logo-dark.svg" : "/adv-logo.svg";
+  const logoSrc =
+    resolvedTheme === "dark" ? "/adv-logo-dark.svg" : "/adv-logo.svg";
 
-  // Don't show nav on setup page
-  if (pathname === "/setup") {
-    return null;
-  }
+  if (pathname === "/setup") return null;
 
-  return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 items-center px-4 md:px-8">
-        {/* Mobile nav */}
-        <Sheet>
-          <SheetTrigger asChild className="md:hidden">
-            <Button variant="ghost" size="icon">
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Toggle menu</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-64">
-            <div className="flex flex-col gap-4 py-4">
-              <Link href="/dashboard" className="flex items-center px-2">
-                <img src={logoSrc} alt="AdiV" className="h-14 w-auto" />
-              </Link>
-              <nav className="flex flex-col gap-1">
-                {NAV_ITEMS.map((item) => (
-                  <NavLink key={item.href} {...item} />
-                ))}
-              </nav>
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {/* Logo */}
-        <Link href="/dashboard" className="flex items-center mr-4">
-          <img src={logoSrc} alt="AdiV logo" className="h-14 w-auto" />
-        </Link>
-
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-1 flex-1">
-          {NAV_ITEMS.map((item) => (
-            <NavLink key={item.href} {...item} />
-          ))}
-        </nav>
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 ml-auto">
+  const navContent = (
+    <>
+      <Link href="/dashboard" className="flex justify-center px-2 pt-2 pb-1">
+        <img src={logoSrc} alt="AdiV" className="h-12 w-auto" />
+      </Link>
+      <Separator className="mb-2" />
+      <nav className="flex flex-col gap-0.5 px-3">
+        {NAV_ITEMS.map((item) => (
+          <NavLink key={item.href} {...item} />
+        ))}
+      </nav>
+      <div className="mt-auto px-3 pb-4 pt-2">
+        <Separator className="mb-3" />
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">Theme</span>
           <ThemeToggle />
         </div>
       </div>
-    </header>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile: Sheet trigger in top bar */}
+      <div className="md:hidden sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+        <div className="flex h-14 items-center px-4">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="mr-2">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-64 p-0">
+              <div className="flex h-full flex-col">{navContent}</div>
+            </SheetContent>
+          </Sheet>
+          <Link href="/dashboard">
+            <img src={logoSrc} alt="AdiV" className="h-10 w-auto" />
+          </Link>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop: Fixed sidebar */}
+      <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-56 flex-col border-r bg-card">
+        <div className="flex h-full flex-col">{navContent}</div>
+      </aside>
+
+      {/* Content offset for sidebar */}
+      <div className="hidden md:block w-56 shrink-0" />
+    </>
   );
 }
