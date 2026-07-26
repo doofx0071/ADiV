@@ -20,7 +20,7 @@ export default function SetupPage() {
 
   if (bike === undefined) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-4">
+      <main className="flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-2xl space-y-4">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-4 w-72" />
@@ -38,7 +38,7 @@ export default function SetupPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-4 py-12">
+    <main className="flex flex-col items-center p-4 py-12">
       <div className="w-full max-w-2xl space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">

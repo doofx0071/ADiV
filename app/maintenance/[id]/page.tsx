@@ -69,7 +69,7 @@ export default function MaintenanceDetailPage() {
 
   if (isLoading) {
     return (
-      <main className="flex min-h-screen flex-col p-4 md:p-8">
+      <main className="flex flex-col p-4 md:p-8">
         <div className="mx-auto w-full max-w-3xl space-y-6">
           <Skeleton className="h-10 w-48" />
           <Skeleton className="h-4 w-64" />
@@ -86,7 +86,7 @@ export default function MaintenanceDetailPage() {
 
   if (!item) {
     return (
-      <main className="flex min-h-screen flex-col p-4 md:p-8">
+      <main className="flex flex-col p-4 md:p-8">
         <div className="mx-auto w-full max-w-3xl">
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -108,7 +108,7 @@ export default function MaintenanceDetailPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col p-4 md:p-8">
+    <main className="flex flex-col p-4 md:p-8">
       <div className="mx-auto w-full max-w-3xl space-y-6">
         <PageHeader
           title={item.name}

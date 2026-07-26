@@ -119,7 +119,7 @@ export default function ExportPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col p-4 md:p-8">
+    <main className="flex flex-col p-4 md:p-8">
       <div className="mx-auto w-full max-w-2xl space-y-6">
         <PageHeader title="Data Export" description="Download your motorcycle data" />
 

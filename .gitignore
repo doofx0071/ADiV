@@ -53,3 +53,6 @@ node_modules/
 
 # build
 out/
+.playwright-mcp/
+nav-snapshot.md
+nav-header-check.png

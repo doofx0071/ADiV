@@ -33,7 +33,7 @@ export default function GalleryPage() {
   const isLoading = maintenanceLogs === undefined;
 
   return (
-    <main className="flex min-h-screen flex-col p-4 md:p-8">
+    <main className="flex flex-col p-4 md:p-8">
       <div className="mx-auto w-full max-w-6xl space-y-6">
         <PageHeader
           title="Photo Gallery"

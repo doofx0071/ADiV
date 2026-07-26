@@ -34,7 +34,7 @@ export default function AchievementsPage() {
   const unlockedTypes = new Set(achievements?.map((a) => a.type) ?? []);
 
   return (
-    <main className="flex min-h-screen flex-col p-4 md:p-8">
+    <main className="flex flex-col p-4 md:p-8">
       <div className="mx-auto w-full max-w-3xl space-y-6">
         <PageHeader
           title="Achievements"
