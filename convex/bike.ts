@@ -71,3 +71,22 @@ export const createBike = mutation({
     });
   },
 });
+
+/**
+ * Update the bike's odometer reading.
+ */
+export const updateOdometer = mutation({
+  args: {
+    currentOdometer: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const bike = await ctx.db.query("bike").take(1);
+    if (!bike[0]) {
+      throw new Error("No bike profile found. Set up your bike first.");
+    }
+    if (args.currentOdometer < 0) {
+      throw new Error("Odometer must be 0 or greater");
+    }
+    await ctx.db.patch(bike[0]._id, { currentOdometer: args.currentOdometer });
+  },
+});

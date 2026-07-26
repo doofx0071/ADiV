@@ -15,8 +15,7 @@ import {
   Image,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -43,14 +42,14 @@ function NavLink({
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-3 rounded-[var(--radius)] px-3 py-2.5 text-sm font-medium transition-all duration-150",
+        "flex items-center gap-2 rounded-none px-3 py-2 text-sm font-medium transition-all duration-150",
         isActive
-          ? "bg-primary text-primary-foreground shadow-sm"
+          ? "bg-primary text-primary-foreground"
           : "text-foreground/70 hover:bg-muted hover:text-foreground"
       )}
     >
-      <Icon className="h-5 w-5 shrink-0" />
-      {label}
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="hidden sm:inline">{label}</span>
     </Link>
   );
 }
@@ -64,58 +63,46 @@ export function Navigation() {
 
   if (pathname === "/setup") return null;
 
-  const navContent = (
-    <>
-      <Link href="/dashboard" className="flex justify-center px-2 pt-2 pb-1">
-        <img src={logoSrc} alt="AdiV" className="h-12 w-auto" />
-      </Link>
-      <Separator className="mb-2" />
-      <nav className="flex flex-col gap-0.5 px-3">
-        {NAV_ITEMS.map((item) => (
-          <NavLink key={item.href} {...item} />
-        ))}
-      </nav>
-      <div className="mt-auto px-3 pb-4 pt-2">
-        <Separator className="mb-3" />
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Theme</span>
+  return (
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+      <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-center px-4">
+        {/* Mobile menu */}
+        <Sheet>
+          <SheetTrigger asChild className="md:hidden absolute left-4">
+            <Button variant="ghost" size="icon">
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0 rounded-none">
+            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+            <div className="flex flex-col gap-1 px-3 py-4">
+              <Link href="/dashboard" className="flex justify-center mb-2">
+                <img src={logoSrc} alt="AdiV" className="h-14 max-w-[220px] w-auto" />
+              </Link>
+              {NAV_ITEMS.map((item) => (
+                <NavLink key={item.href} {...item} />
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* Logo - absolute left, doesn't affect nav centering */}
+        <Link href="/dashboard" className="absolute left-4 hidden md:block">
+          <img src={logoSrc} alt="AdiV" className="h-11 max-w-[200px] w-auto" />
+        </Link>
+
+        {/* Nav links - perfectly centered in header */}
+        <nav className="flex items-center justify-center">
+          {NAV_ITEMS.map((item) => (
+            <NavLink key={item.href} {...item} />
+          ))}
+        </nav>
+
+        {/* Theme toggle - absolute right */}
+        <div className="absolute right-4">
           <ThemeToggle />
         </div>
       </div>
-    </>
-  );
-
-  return (
-    <>
-      {/* Mobile: Sheet trigger in top bar */}
-      <div className="md:hidden sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-        <div className="flex h-14 items-center px-4">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="mr-2">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-0">
-              <div className="flex h-full flex-col">{navContent}</div>
-            </SheetContent>
-          </Sheet>
-          <Link href="/dashboard">
-            <img src={logoSrc} alt="AdiV" className="h-10 w-auto" />
-          </Link>
-          <div className="ml-auto">
-            <ThemeToggle />
-          </div>
-        </div>
-      </div>
-
-      {/* Desktop: Fixed sidebar */}
-      <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-56 flex-col border-r bg-card">
-        <div className="flex h-full flex-col">{navContent}</div>
-      </aside>
-
-      {/* Content offset for sidebar */}
-      <div className="hidden md:block w-56 shrink-0" />
-    </>
+    </header>
   );
 }

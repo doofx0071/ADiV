@@ -1,0 +1,65 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link [ref=e6] [cursor=pointer]:
+        - /url: /dashboard
+        - img "AdiV" [ref=e7]
+      - navigation [ref=e8]:
+        - link "Dashboard" [ref=e9] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Analytics" [ref=e16] [cursor=pointer]:
+          - /url: /analytics
+        - link "Gallery" [ref=e20] [cursor=pointer]:
+          - /url: /gallery
+        - link "History" [ref=e26] [cursor=pointer]:
+          - /url: /history
+        - link "Achievements" [ref=e32] [cursor=pointer]:
+          - /url: /achievements
+        - link "Export" [ref=e37] [cursor=pointer]:
+          - /url: /export
+      - button "Switch to dark mode" [ref=e43]
+  - main [ref=e51]:
+    - generic [ref=e52]:
+      - generic [ref=e53]:
+        - generic [ref=e54]:
+          - heading "Dashboard" [level=1] [ref=e55]
+          - paragraph [ref=e56]: Overview of your ADiV
+        - generic [ref=e58]:
+          - button "Log Ride" [ref=e59]
+          - button "Log Fuel" [ref=e60]
+          - button "Log Maintenance" [ref=e61]
+          - button "Add Expense" [ref=e62]
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - generic [ref=e65]: Current Odometer
+          - generic [ref=e72]: 0 km
+        - generic [ref=e74]:
+          - generic [ref=e75]: This Month's Rides
+          - generic [ref=e83]:
+            - generic [ref=e84]: "0"
+            - generic [ref=e85]: 0 km total
+        - generic [ref=e87]:
+          - generic [ref=e88]: Fuel Efficiency
+          - generic [ref=e95]:
+            - generic [ref=e96]: —
+            - generic [ref=e97]: Last 3 fuel-ups
+        - generic [ref=e99]:
+          - generic [ref=e100]: This Month's Expenses
+          - generic [ref=e107]: ₱0
+        - generic [ref=e109]:
+          - generic [ref=e110]: Maintenance Streak
+          - generic [ref=e116]:
+            - generic [ref=e117]: 0 items
+            - generic [ref=e118]: Serviced on time
+        - generic [ref=e120]:
+          - generic [ref=e121]: Next Due
+          - generic [ref=e128]: All good!
+      - generic [ref=e130]:
+        - generic [ref=e131]:
+          - generic [ref=e132]: Upcoming Tasks
+          - paragraph [ref=e137]: No upcoming tasks. Your bike is in great shape!
+        - generic [ref=e138]:
+          - generic [ref=e139]: Recent Activity
+          - paragraph [ref=e145]: No activity yet. Start logging!
+  - region "Notifications alt+T"

@@ -1,8 +1,20 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useState } from "react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { StatCard } from "@/components/layout/stat-card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import {
   Gauge,
   Route,
@@ -19,6 +31,26 @@ export function DashboardStats() {
   const fuelLogs = useQuery(api.fuel.getFuelLogs, { limit: 10 });
   const expenses = useQuery(api.expenses.getExpenses, { limit: 100 });
   const maintenanceItems = useQuery(api.maintenance.getMaintenanceItems);
+  const updateOdometer = useMutation(api.bike.updateOdometer);
+
+  const [odometerOpen, setOdometerOpen] = useState(false);
+  const [newOdometer, setNewOdometer] = useState("");
+  const [savingOdometer, setSavingOdometer] = useState(false);
+
+  const handleOdometerSave = async () => {
+    const val = Number(newOdometer);
+    if (!val || val < 0) { toast.error("Enter a valid odometer reading"); return; }
+    setSavingOdometer(true);
+    try {
+      await updateOdometer({ currentOdometer: val });
+      toast.success("Odometer updated");
+      setOdometerOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setSavingOdometer(false);
+    }
+  };
 
   if (!bike || rides === undefined || fuelLogs === undefined || expenses === undefined || maintenanceItems === undefined) {
     return (
@@ -97,12 +129,18 @@ export function DashboardStats() {
     : "All good!";
 
   return (
+    <>
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <StatCard
-        title="Current Odometer"
-        value={`${bike.currentOdometer.toLocaleString()} km`}
-        icon={<Gauge className="h-4 w-4" />}
-      />
+      <button
+        onClick={() => { setNewOdometer(String(bike.currentOdometer)); setOdometerOpen(true); }}
+        className="text-left cursor-pointer hover:opacity-80 transition-opacity"
+      >
+        <StatCard
+          title="Current Odometer"
+          value={`${bike.currentOdometer.toLocaleString()} km`}
+          icon={<Gauge className="h-4 w-4" />}
+        />
+      </button>
       <StatCard
         title="This Month's Rides"
         value={`${thisMonthRides.length}`}
@@ -132,5 +170,37 @@ export function DashboardStats() {
         icon={<CalendarCheck className="h-4 w-4" />}
       />
     </div>
+
+    {/* Odometer Edit Dialog */}
+    <Dialog open={odometerOpen} onOpenChange={setOdometerOpen}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Edit Odometer</DialogTitle>
+          <DialogDescription>
+            Update your current odometer reading
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="space-y-2">
+            <Label>Current Odometer (km)</Label>
+            <Input
+              type="number"
+              value={newOdometer}
+              onChange={(e) => setNewOdometer(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="flex gap-3">
+            <Button onClick={handleOdometerSave} disabled={savingOdometer} className="flex-1">
+              {savingOdometer ? "Saving..." : "Save"}
+            </Button>
+            <Button variant="outline" onClick={() => setOdometerOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
