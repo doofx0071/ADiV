@@ -117,7 +117,8 @@ describe("convex/schema.ts", () => {
     expect(fields).toContain("notes: v.optional(v.string())");
     expect(fields).toContain("nextDueOdometer: v.optional(v.number())");
     expect(fields).toContain("nextDueDate: v.optional(v.number())");
-    expect(fields).toContain("photos: v.optional(v.array(v.string()))");
+    expect(fields).toContain("itemName: v.optional(v.string())");
+    expect(fields).toContain("photos: v.optional(v.array(v.id(\"_storage\")))");
   });
 
   // ── Rides Fields ─────────────────────────────────────────────────
@@ -164,7 +165,7 @@ describe("convex/schema.ts", () => {
   it("files table has all required fields", () => {
     const fields = extractTableBlock("files");
 
-    expect(fields).toContain("storageId: v.string()");
+    expect(fields).toContain("storageId: v.id(\"_storage\")");
     expect(fields).toContain("name: v.string()");
     expect(fields).toContain("type: v.string()");
     expect(fields).toContain("size: v.number()");

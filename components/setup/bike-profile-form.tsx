@@ -54,6 +54,7 @@ export type BikeProfileFormValues = z.infer<typeof bikeProfileSchema>;
 export function BikeProfileForm() {
   const router = useRouter();
   const createBike = useMutation(api.bike.createBike);
+  const seedMaintenanceItems = useMutation(api.seed.seed);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<BikeProfileFormValues>({
@@ -108,6 +109,12 @@ export function BikeProfileForm() {
         sparkPlugType: values.sparkPlugType,
         fuelTankCapacity: Number(values.fuelTankCapacity),
       });
+      // Load the Honda ADV160 maintenance schedule on first run (idempotent)
+      try {
+        await seedMaintenanceItems({});
+      } catch {
+        // Non-critical — items can be seeded manually via `npx convex run seed:seed`
+      }
       toast.success("Bike profile created successfully!");
       router.push("/dashboard");
     } catch (error) {

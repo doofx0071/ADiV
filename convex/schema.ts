@@ -57,13 +57,17 @@ export default defineSchema({
   // template item. Includes cost, odometer, and next-due tracking.
   maintenanceLogs: defineTable({
     itemId: v.id("maintenanceItems"),
+    // Denormalized from the item at insert time so history lists can show
+    // what was serviced without a join.
+    itemName: v.optional(v.string()),
     odometer: v.number(),
     date: v.number(),
     cost: v.optional(v.number()),
     notes: v.optional(v.string()),
     nextDueOdometer: v.optional(v.number()),
     nextDueDate: v.optional(v.number()),
-    photos: v.optional(v.array(v.string())),
+    // Convex storage ids; resolve to URLs via ctx.storage.getUrl.
+    photos: v.optional(v.array(v.id("_storage"))),
   })
     .index("by_item", ["itemId"])
     .index("by_date", ["date"]),
@@ -99,13 +103,13 @@ export default defineSchema({
     date: v.number(),
     description: v.optional(v.string()),
     receiptPhoto: v.optional(v.string()),
-  }),
+  }).index("by_date", ["date"]),
 
   // ── Uploaded Files ────────────────────────────────────────────────
   // Metadata for files stored in Convex file storage.
   // recordType + recordId form a polymorphic reference to any table.
   files: defineTable({
-    storageId: v.string(),
+    storageId: v.id("_storage"),
     name: v.string(),
     type: v.string(),
     size: v.number(),

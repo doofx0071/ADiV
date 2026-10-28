@@ -3,12 +3,22 @@
 import { useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ChartEmptyState, ChartSkeletonBody } from "@/components/charts/chart-states";
 import { BarChart } from "@tremor/react";
+import { Wrench } from "lucide-react";
 
 export function MaintenanceFrequencyChart() {
   const maintenanceItems = useQuery(api.maintenance.getMaintenanceItems);
   const maintenanceLogs = useQuery(api.maintenance.getAllMaintenanceLogs, { limit: 1000 });
+
+  const isLoading = maintenanceItems === undefined || maintenanceLogs === undefined;
 
   const data = useMemo(() => {
     if (!maintenanceItems || !maintenanceLogs) return [];
@@ -32,36 +42,33 @@ export function MaintenanceFrequencyChart() {
     }));
   }, [maintenanceItems, maintenanceLogs]);
 
-  const hasData = data.length > 0;
-
-  if (!hasData) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Services by Category</CardTitle>
-        </CardHeader>
-        <CardContent className="h-64 flex items-center justify-center text-muted-foreground">
-          No maintenance logs yet — service your bike to see breakdowns
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Services by Category</CardTitle>
+        <CardDescription>Which maintenance areas you service most</CardDescription>
       </CardHeader>
       <CardContent>
-        <BarChart
-          className="h-64"
-          data={data}
-          index="category"
-          categories={["services"]}
-          colors={["orange"]}
-          yAxisWidth={40}
-          showLegend={false}
-        />
+        {isLoading ? (
+          <ChartSkeletonBody />
+        ) : data.length > 0 ? (
+          <BarChart
+            className="h-64"
+            data={data}
+            index="category"
+            categories={["services"]}
+            colors={["amber"]}
+            yAxisWidth={40}
+            showLegend={false}
+          />
+        ) : (
+          <ChartEmptyState
+            icon={<Wrench />}
+            title="No maintenance logged yet"
+            description="Service history will show which areas of your bike need the most attention."
+            ctaLabel="Log maintenance"
+          />
+        )}
       </CardContent>
     </Card>
   );

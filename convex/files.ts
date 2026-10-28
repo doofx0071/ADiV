@@ -2,6 +2,19 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
 /**
+ * Generate a short-lived upload URL for direct-to-storage uploads.
+ * Flow: generateUploadUrl → POST the file → registerFile with the
+ * returned storageId.
+ */
+export const generateUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/**
  * Query files for a specific record.
  */
 export const getFilesByRecord = query({
@@ -13,7 +26,7 @@ export const getFilesByRecord = query({
     v.object({
       _id: v.id("files"),
       _creationTime: v.number(),
-      storageId: v.string(),
+      storageId: v.id("_storage"),
       name: v.string(),
       type: v.string(),
       size: v.number(),
@@ -38,7 +51,7 @@ export const getFilesByRecord = query({
  */
 export const registerFile = mutation({
   args: {
-    storageId: v.string(),
+    storageId: v.id("_storage"),
     name: v.string(),
     type: v.string(),
     size: v.number(),
@@ -64,20 +77,18 @@ export const registerFile = mutation({
 });
 
 /**
- * Delete a file record and its stored file.
+ * Delete a file record and its stored blob.
  */
 export const deleteFile = mutation({
   args: {
     fileId: v.id("files"),
   },
-  returns: v.boolean(),
   handler: async (ctx, args) => {
     const file = await ctx.db.get(args.fileId);
     if (!file) throw new Error(`File not found: ${args.fileId}`);
 
-    await ctx.storage.delete(file.storageId as any);
+    await ctx.storage.delete(file.storageId);
     await ctx.db.delete(args.fileId);
-    return true;
   },
 });
 
@@ -86,10 +97,34 @@ export const deleteFile = mutation({
  */
 export const getFileUrl = query({
   args: {
-    storageId: v.string(),
+    storageId: v.id("_storage"),
   },
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args) => {
-    return await ctx.storage.getUrl(args.storageId as any);
+    return await ctx.storage.getUrl(args.storageId);
+  },
+});
+
+/**
+ * Resolve a batch of storage ids to display URLs in one query.
+ * Returns null urls for blobs that no longer exist.
+ */
+export const getFileUrls = query({
+  args: {
+    storageIds: v.array(v.id("_storage")),
+  },
+  returns: v.array(
+    v.object({
+      storageId: v.id("_storage"),
+      url: v.union(v.string(), v.null()),
+    })
+  ),
+  handler: async (ctx, args) => {
+    return Promise.all(
+      args.storageIds.map(async (storageId) => ({
+        storageId,
+        url: await ctx.storage.getUrl(storageId),
+      }))
+    );
   },
 });

@@ -52,7 +52,8 @@ export const getRideStats = query({
 
 /**
  * Log a ride.
- * Calculates distance from odometer readings.
+ * Calculates distance from odometer readings and keeps the bike odometer
+ * in sync so the reminder engine never sees stale readings.
  */
 export const logRide = mutation({
   args: {
@@ -72,7 +73,7 @@ export const logRide = mutation({
     }
 
     const distance = args.endOdometer - args.startOdometer;
-    return await ctx.db.insert("rides", {
+    const rideId = await ctx.db.insert("rides", {
       startOdometer: args.startOdometer,
       endOdometer: args.endOdometer,
       distance,
@@ -80,23 +81,31 @@ export const logRide = mutation({
       durationMinutes: args.durationMinutes,
       notes: args.notes,
     });
+
+    const bike = (await ctx.db.query("bike").take(1))[0];
+    if (bike && args.endOdometer > bike.currentOdometer) {
+      await ctx.db.patch(bike._id, { currentOdometer: args.endOdometer });
+    }
+
+    return rideId;
   },
 });
 
 /**
- * Update a ride log.
+ * Update a ride log (notes only).
  */
 export const updateRide = mutation({
   args: {
     rideId: v.id("rides"),
     notes: v.optional(v.string()),
   },
-  returns: v.boolean(),
   handler: async (ctx, args) => {
     const ride = await ctx.db.get(args.rideId);
     if (!ride) throw new Error(`Ride not found: ${args.rideId}`);
-    await ctx.db.patch(args.rideId, { notes: args.notes });
-    return true;
+    // Guard the patch: passing notes: undefined to patch would delete the field.
+    if (args.notes !== undefined) {
+      await ctx.db.patch(args.rideId, { notes: args.notes });
+    }
   },
 });
 
@@ -107,11 +116,9 @@ export const deleteRide = mutation({
   args: {
     rideId: v.id("rides"),
   },
-  returns: v.boolean(),
   handler: async (ctx, args) => {
     const ride = await ctx.db.get(args.rideId);
     if (!ride) throw new Error(`Ride not found: ${args.rideId}`);
     await ctx.db.delete(args.rideId);
-    return true;
   },
 });

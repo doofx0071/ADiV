@@ -27,7 +27,7 @@ export default function Home() {
             <Badge variant="default">Maintenance</Badge>
             <Badge variant="secondary">Rides</Badge>
             <Badge variant="outline">Fuel</Badge>
-            <Badge variant="destructive">Expenses</Badge>
+            <Badge variant="secondary">Expenses</Badge>
           </div>
           <Link href="/setup" className="w-full">
             <Button className="w-full">Get Started</Button>

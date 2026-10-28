@@ -4,8 +4,8 @@ import {
   createContext,
   useContext,
   useEffect,
-  useState,
   useCallback,
+  useSyncExternalStore,
 } from "react";
 import {
   type Theme,
@@ -38,6 +38,29 @@ export function useTheme() {
   return context;
 }
 
+// localStorage-backed store: writes notify subscribers; cross-tab via "storage"
+const themeListeners = new Set<() => void>();
+function subscribeToTheme(onChange: () => void) {
+  themeListeners.add(onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    themeListeners.delete(onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+function notifyThemeChanged() {
+  themeListeners.forEach((listener) => listener());
+}
+
+const SYSTEM_MEDIA_QUERY = "(prefers-color-scheme: dark)";
+function subscribeToSystemTheme(onChange: () => void) {
+  const mediaQuery = window.matchMedia(SYSTEM_MEDIA_QUERY);
+  mediaQuery.addEventListener("change", onChange);
+  return () => mediaQuery.removeEventListener("change", onChange);
+}
+
+const noopSubscribe = () => () => {};
+
 interface ThemeProviderProps {
   children: React.ReactNode;
   defaultTheme?: Theme;
@@ -49,58 +72,47 @@ export function ThemeProvider({
   defaultTheme = DEFAULT_THEME,
   storageKey = THEME_STORAGE_KEY,
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(defaultTheme);
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
-  const [mounted, setMounted] = useState(false);
+  // Theme and system preference are external stores: useSyncExternalStore
+  // re-reads them after hydration without setState-in-effect cascades.
+  const stored = useSyncExternalStore(
+    subscribeToTheme,
+    () => localStorage.getItem(storageKey),
+    () => null
+  );
+  const systemTheme = useSyncExternalStore(
+    subscribeToSystemTheme,
+    () => resolveSystemTheme(),
+    () => "light" as ResolvedTheme
+  );
+  const mounted = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false
+  );
 
-  // Initialize theme from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem(storageKey) as Theme | null;
-    const initial = stored ?? defaultTheme;
-    setThemeState(initial);
-    setMounted(true);
-  }, [defaultTheme, storageKey]);
+  const theme = (stored as Theme | null) ?? defaultTheme;
+  const resolvedTheme: ResolvedTheme = theme === "system" ? systemTheme : theme;
 
-  // Apply theme class to html element whenever theme changes
+  // Apply the resolved class and meta color (DOM side effects only)
   useEffect(() => {
     const root = document.documentElement;
     root.classList.remove("light", "dark");
-
-    const resolved = theme === "system" ? resolveSystemTheme() : theme;
-    setResolvedTheme(resolved);
-    root.classList.add(resolved);
+    root.classList.add(resolvedTheme);
 
     // Update meta theme-color for mobile browsers
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
       metaThemeColor.setAttribute(
         "content",
-        resolved === "dark" ? "#0a0a0f" : "#f8fafc"
+        resolvedTheme === "dark" ? "#0a0a0f" : "#f8fafc"
       );
     }
-  }, [theme]);
-
-  // Listen for system theme changes when in "system" mode
-  useEffect(() => {
-    if (theme !== "system") return;
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = () => {
-      const resolved = resolveSystemTheme();
-      setResolvedTheme(resolved);
-      const root = document.documentElement;
-      root.classList.remove("light", "dark");
-      root.classList.add(resolved);
-    };
-
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [theme]);
+  }, [resolvedTheme]);
 
   const setTheme = useCallback(
     (newTheme: Theme) => {
       localStorage.setItem(storageKey, newTheme);
-      setThemeState(newTheme);
+      notifyThemeChanged();
     },
     [storageKey]
   );

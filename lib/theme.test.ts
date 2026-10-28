@@ -189,7 +189,7 @@ describe("resolveSystemTheme", () => {
 
   beforeEach(() => {
     matchMediaMock = vi.fn();
-    globalThis.matchMedia = matchMediaMock as any;
+    globalThis.matchMedia = matchMediaMock as unknown as typeof globalThis.matchMedia;
   });
 
   afterEach(() => {
@@ -209,7 +209,9 @@ describe("resolveSystemTheme", () => {
 
 describe("getResolvedTheme", () => {
   beforeEach(() => {
-    globalThis.matchMedia = vi.fn().mockReturnValue({ matches: false }) as any;
+    globalThis.matchMedia = vi
+      .fn()
+      .mockReturnValue({ matches: false }) as unknown as typeof globalThis.matchMedia;
   });
 
   afterEach(() => {

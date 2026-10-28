@@ -10,6 +10,24 @@ import { UpcomingTasksWidget } from "@/components/dashboard/upcoming-tasks";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorBoundary } from "@/components/layout/error-boundary";
+import { Card, CardContent } from "@/components/ui/card";
+
+function WidgetFallback({ title }: { title: string }) {
+  return (
+    <Card>
+      <CardContent className="py-8 text-center text-sm text-muted-foreground">
+        {title} failed to load.{" "}
+        <button
+          onClick={() => window.location.reload()}
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          Reload to try again
+        </button>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -62,11 +80,17 @@ export default function DashboardPage() {
           action={<QuickActions />}
         />
 
-        <DashboardStats />
+        <ErrorBoundary fallback={<WidgetFallback title="Dashboard stats" />}>
+          <DashboardStats />
+        </ErrorBoundary>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <UpcomingTasksWidget />
-          <RecentActivity />
+          <ErrorBoundary fallback={<WidgetFallback title="Upcoming tasks" />}>
+            <UpcomingTasksWidget />
+          </ErrorBoundary>
+          <ErrorBoundary fallback={<WidgetFallback title="Recent activity" />}>
+            <RecentActivity />
+          </ErrorBoundary>
         </div>
       </div>
     </main>

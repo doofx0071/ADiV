@@ -18,19 +18,25 @@ export default function GalleryPage() {
   const maintenanceLogs = useQuery(api.maintenance.getAllMaintenanceLogs, { limit: 1000 });
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
-  // Collect all photos from maintenance logs
+  // Collect photo storage ids from maintenance logs, then resolve to URLs
+  const storageIds = maintenanceLogs?.flatMap((log) => log.photos ?? []) ?? [];
+  const fileUrls = useQuery(
+    api.files.getFileUrls,
+    storageIds.length > 0 ? { storageIds } : { storageIds: [] }
+  );
+
+  const urlById = new Map(fileUrls?.map((f) => [f.storageId, f.url]) ?? []);
+
+  // Photos with a missing blob are skipped
   const photos =
     maintenanceLogs?.flatMap((log) =>
-      (log.photos ?? []).map((photo, idx) => ({
-        id: `${log._id}-${idx}`,
-        url: photo,
-        logId: log._id,
-        odometer: log.odometer,
-        date: log.date,
-      }))
+      (log.photos ?? []).flatMap((photo) => {
+        const url = urlById.get(photo);
+        return url ? [{ id: `${log._id}-${photo}`, url, odometer: log.odometer, date: log.date }] : [];
+      })
     ) ?? [];
 
-  const isLoading = maintenanceLogs === undefined;
+  const isLoading = maintenanceLogs === undefined || (storageIds.length > 0 && fileUrls === undefined);
 
   return (
     <main className="flex flex-col p-4 md:p-8">
@@ -60,7 +66,8 @@ export default function GalleryPage() {
                   className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                   loading="lazy"
                 />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                {/* Always visible on touch (no hover); revealed on hover/focus on desktop */}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-100 transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100 md:group-focus-visible:opacity-100">
                   <p className="text-[10px] text-white font-medium">
                     {photo.odometer.toLocaleString()} km
                   </p>

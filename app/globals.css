@@ -169,3 +169,22 @@ img {
 .stagger-fade > *:nth-child(9) { animation-delay: 0.27s; }
 .stagger-fade > *:nth-child(10) { animation-delay: 0.30s; }
 .stagger-fade > *:nth-child(n+11) { animation-delay: 0.33s; }
+
+/* Keep keyboard-focused elements visible below the sticky header (WCAG 2.4.11)
+   and above the fixed mobile bottom bar */
+html {
+  scroll-padding-top: 5rem;
+  scroll-padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+}
+
+/* ── Respect prefers-reduced-motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -23,6 +23,7 @@ export const getExpenses = query({
     const limit = args.limit ?? 100;
     return await ctx.db
       .query("expenses")
+      .withIndex("by_date", (q) => q)
       .order("desc")
       .take(limit);
   },
@@ -105,7 +106,6 @@ export const updateExpense = mutation({
     description: v.optional(v.string()),
     receiptPhoto: v.optional(v.string()),
   },
-  returns: v.boolean(),
   handler: async (ctx, args) => {
     const expense = await ctx.db.get(args.expenseId);
     if (!expense) throw new Error(`Expense not found: ${args.expenseId}`);
@@ -117,7 +117,6 @@ export const updateExpense = mutation({
     if (args.receiptPhoto !== undefined) updates.receiptPhoto = args.receiptPhoto;
 
     await ctx.db.patch(args.expenseId, updates);
-    return true;
   },
 });
 
@@ -128,11 +127,9 @@ export const deleteExpense = mutation({
   args: {
     expenseId: v.id("expenses"),
   },
-  returns: v.boolean(),
   handler: async (ctx, args) => {
     const expense = await ctx.db.get(args.expenseId);
     if (!expense) throw new Error(`Expense not found: ${args.expenseId}`);
     await ctx.db.delete(args.expenseId);
-    return true;
   },
 });

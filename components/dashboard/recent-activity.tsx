@@ -52,7 +52,7 @@ export function RecentActivity() {
     ...(maintenanceLogs?.map((log) => ({
       id: log._id,
       type: "maintenance" as const,
-      title: "Maintenance",
+      title: log.itemName ?? "Maintenance",
       subtitle: `${log.odometer.toLocaleString()} km`,
       date: log.date,
       icon: <Wrench className="h-4 w-4 text-primary" />,

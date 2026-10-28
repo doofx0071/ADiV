@@ -85,6 +85,8 @@ export const getFuelStats = query({
 /**
  * Log a fuel-up.
  * Validates odometer is increasing and date is not in the future.
+ * Keeps the bike odometer in sync so the reminder engine never sees
+ * stale readings.
  */
 export const logFuel = mutation({
   args: {
@@ -112,7 +114,7 @@ export const logFuel = mutation({
     }
 
     const totalPrice = args.liters * args.pricePerLiter;
-    return await ctx.db.insert("fuelLogs", {
+    const logId = await ctx.db.insert("fuelLogs", {
       odometer: args.odometer,
       liters: args.liters,
       pricePerLiter: args.pricePerLiter,
@@ -121,11 +123,18 @@ export const logFuel = mutation({
       stationName: args.stationName,
       notes: args.notes,
     });
+
+    const bike = (await ctx.db.query("bike").take(1))[0];
+    if (bike && args.odometer > bike.currentOdometer) {
+      await ctx.db.patch(bike._id, { currentOdometer: args.odometer });
+    }
+
+    return logId;
   },
 });
 
 /**
- * Update a fuel log.
+ * Update a fuel log (station name and notes only).
  */
 export const updateFuelLog = mutation({
   args: {
@@ -133,15 +142,16 @@ export const updateFuelLog = mutation({
     stationName: v.optional(v.string()),
     notes: v.optional(v.string()),
   },
-  returns: v.boolean(),
   handler: async (ctx, args) => {
     const log = await ctx.db.get(args.fuelLogId);
     if (!log) throw new Error(`Fuel log not found: ${args.fuelLogId}`);
-    await ctx.db.patch(args.fuelLogId, {
-      stationName: args.stationName,
-      notes: args.notes,
-    });
-    return true;
+    // Guard the patch: passing undefined to patch would delete the field.
+    const updates: Partial<typeof log> = {};
+    if (args.stationName !== undefined) updates.stationName = args.stationName;
+    if (args.notes !== undefined) updates.notes = args.notes;
+    if (Object.keys(updates).length > 0) {
+      await ctx.db.patch(args.fuelLogId, updates);
+    }
   },
 });
 
@@ -152,11 +162,9 @@ export const deleteFuelLog = mutation({
   args: {
     fuelLogId: v.id("fuelLogs"),
   },
-  returns: v.boolean(),
   handler: async (ctx, args) => {
     const log = await ctx.db.get(args.fuelLogId);
     if (!log) throw new Error(`Fuel log not found: ${args.fuelLogId}`);
     await ctx.db.delete(args.fuelLogId);
-    return true;
   },
 });

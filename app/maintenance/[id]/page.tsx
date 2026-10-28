@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/layout/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { calculateStatus } from "@/lib/reminders";
+import { calculateStatus, formatDueText } from "@/lib/reminders";
 import {
   Wrench,
   ArrowLeft,
@@ -36,7 +36,7 @@ export default function MaintenanceDetailPage() {
   }, [maintenanceItems, itemId]);
 
   const status = useMemo(() => {
-    if (!bike || !item || !item.lastServiceDate || !item.lastServiceOdometer) return null;
+    if (!bike || !item || item.lastServiceDate === undefined || item.lastServiceOdometer === undefined) return null;
     return calculateStatus(
       bike.currentOdometer,
       new Date(),
@@ -134,13 +134,7 @@ export default function MaintenanceDetailPage() {
                 <div className="flex items-center gap-2">
                   <StatusBadge status={status.status} />
                   <span className="text-sm text-muted-foreground">
-                    {status.dueInKm !== null && status.dueInKm >= 0
-                      ? `Due in ${status.dueInKm} km`
-                      : status.dueInDays !== null && status.dueInDays >= 0
-                      ? `Due in ${status.dueInDays} days`
-                      : status.dueInKm !== null && status.dueInKm < 0
-                      ? `Overdue by ${Math.abs(status.dueInKm)} km`
-                      : `Overdue by ${Math.abs(status.dueInDays ?? 0)} days`}
+                    {formatDueText(status)}
                   </span>
                 </div>
               ) : (

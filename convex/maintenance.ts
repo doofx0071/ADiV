@@ -22,7 +22,10 @@ export const getMaintenanceItems = query({
     })
   ),
   handler: async (ctx) => {
-    return await ctx.db.query("maintenanceItems").order("asc").collect();
+    const items = await ctx.db.query("maintenanceItems").collect();
+    return items.sort(
+      (a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)
+    );
   },
 });
 
@@ -39,13 +42,14 @@ export const getMaintenanceLogs = query({
       _id: v.id("maintenanceLogs"),
       _creationTime: v.number(),
       itemId: v.id("maintenanceItems"),
+      itemName: v.optional(v.string()),
       odometer: v.number(),
       date: v.number(),
       cost: v.optional(v.number()),
       notes: v.optional(v.string()),
       nextDueOdometer: v.optional(v.number()),
       nextDueDate: v.optional(v.number()),
-      photos: v.optional(v.array(v.string())),
+      photos: v.optional(v.array(v.id("_storage"))),
     })
   ),
   handler: async (ctx, args) => {
@@ -70,13 +74,14 @@ export const getAllMaintenanceLogs = query({
       _id: v.id("maintenanceLogs"),
       _creationTime: v.number(),
       itemId: v.id("maintenanceItems"),
+      itemName: v.optional(v.string()),
       odometer: v.number(),
       date: v.number(),
       cost: v.optional(v.number()),
       notes: v.optional(v.string()),
       nextDueOdometer: v.optional(v.number()),
       nextDueDate: v.optional(v.number()),
-      photos: v.optional(v.array(v.string())),
+      photos: v.optional(v.array(v.id("_storage"))),
     })
   ),
   handler: async (ctx, args) => {
@@ -92,7 +97,8 @@ export const getAllMaintenanceLogs = query({
 /**
  * Log a maintenance service.
  * Validates item exists, odometer is valid, date is not in the future.
- * Updates the maintenance item's last service tracking.
+ * Updates the maintenance item's last service tracking and keeps the bike
+ * odometer in sync so the reminder engine never sees stale readings.
  */
 export const logMaintenance = mutation({
   args: {
@@ -101,7 +107,7 @@ export const logMaintenance = mutation({
     date: v.number(),
     cost: v.optional(v.number()),
     notes: v.optional(v.string()),
-    photos: v.optional(v.array(v.string())),
+    photos: v.optional(v.array(v.id("_storage"))),
   },
   returns: v.id("maintenanceLogs"),
   handler: async (ctx, args) => {
@@ -131,6 +137,7 @@ export const logMaintenance = mutation({
     // Create the log
     const logId = await ctx.db.insert("maintenanceLogs", {
       itemId: args.itemId,
+      itemName: item.name,
       odometer: args.odometer,
       date: args.date,
       cost: args.cost,
@@ -146,7 +153,31 @@ export const logMaintenance = mutation({
       lastServiceDate: args.date,
     });
 
+    // Keep the bike odometer current — the reminder engine reads it
+    const bike = (await ctx.db.query("bike").take(1))[0];
+    if (bike && args.odometer > bike.currentOdometer) {
+      await ctx.db.patch(bike._id, { currentOdometer: args.odometer });
+    }
+
     return logId;
+  },
+});
+
+/**
+ * Aggregate maintenance cost stats for analytics.
+ */
+export const getMaintenanceStats = query({
+  args: {},
+  returns: v.object({
+    totalCost: v.number(),
+    logCount: v.number(),
+  }),
+  handler: async (ctx) => {
+    const logs = await ctx.db.query("maintenanceLogs").collect();
+    return {
+      totalCost: logs.reduce((sum, log) => sum + (log.cost ?? 0), 0),
+      logCount: logs.length,
+    };
   },
 });
 
@@ -158,9 +189,8 @@ export const updateMaintenanceLog = mutation({
     logId: v.id("maintenanceLogs"),
     cost: v.optional(v.number()),
     notes: v.optional(v.string()),
-    photos: v.optional(v.array(v.string())),
+    photos: v.optional(v.array(v.id("_storage"))),
   },
-  returns: v.boolean(),
   handler: async (ctx, args) => {
     const log = await ctx.db.get(args.logId);
     if (!log) {
@@ -173,7 +203,6 @@ export const updateMaintenanceLog = mutation({
     if (args.photos !== undefined) updates.photos = args.photos;
 
     await ctx.db.patch(args.logId, updates);
-    return true;
   },
 });
 
@@ -185,27 +214,22 @@ export const deleteMaintenanceLog = mutation({
   args: {
     logId: v.id("maintenanceLogs"),
   },
-  returns: v.boolean(),
   handler: async (ctx, args) => {
     const log = await ctx.db.get(args.logId);
     if (!log) {
       throw new Error(`Maintenance log not found: ${args.logId}`);
     }
 
-    // Delete associated files if any
-    if (log.photos && log.photos.length > 0) {
-      for (const fileId of log.photos) {
-        const file = await ctx.db
-          .query("files")
-          .withIndex("by_record", (q) =>
-            q.eq("recordType", "maintenanceLog").eq("recordId", args.logId)
-          )
-          .filter((q) => q.eq(q.field("storageId"), fileId))
-          .first();
-        if (file) {
-          await ctx.db.delete(file._id);
-        }
-      }
+    // Delete file records and stored blobs for this log
+    const fileRecords = await ctx.db
+      .query("files")
+      .withIndex("by_record", (q) =>
+        q.eq("recordType", "maintenanceLog").eq("recordId", args.logId)
+      )
+      .collect();
+    for (const file of fileRecords) {
+      await ctx.storage.delete(file.storageId);
+      await ctx.db.delete(file._id);
     }
 
     // Find previous log for this item to update lastService tracking
@@ -231,6 +255,5 @@ export const deleteMaintenanceLog = mutation({
 
     // Delete the log
     await ctx.db.delete(args.logId);
-    return true;
   },
 });

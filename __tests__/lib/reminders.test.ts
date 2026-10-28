@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateProgress,
   calculateStatus,
+  formatDueText,
   getDueDate,
   getDueOdometer,
   isOverdue,
@@ -37,10 +38,8 @@ describe('calculateProgress', () => {
     expect(calculateProgress(0, 0, 6000)).toBe(0);
   });
 
-  it('throws on odometer rollback', () => {
-    expect(() => calculateProgress(1000, 2000, 6000)).toThrow(
-      'Current odometer cannot be less than last service odometer'
-    );
+  it('clamps to 0 on odometer rollback instead of throwing', () => {
+    expect(calculateProgress(1000, 2000, 6000)).toBe(0);
   });
 });
 
@@ -91,10 +90,13 @@ describe('calculateStatus', () => {
     expect(result.status).toBe('upcoming');
   });
 
-  it('odometer rollback → throws error', () => {
-    expect(() =>
-      calculateStatus(1000, new Date(), 2000, new Date('2024-01-01'), 6000, 12)
-    ).toThrow('Current odometer cannot be less than last service odometer');
+  it('odometer rollback → clamps instead of throwing', () => {
+    // Bike odometer behind the item's last service: math still computes
+    // (due at last + interval), progress clamps to 0, no crash.
+    const result = calculateStatus(1000, new Date(), 2000, new Date('2024-01-01'), 6000, 12);
+    expect(result.progressPercent).toBe(0);
+    expect(result.dueInKm).toBe(7000);
+    expect(['upcoming', 'due', 'overdue']).toContain(result.status);
   });
 
   it('future-dated service → throws error', () => {
@@ -165,5 +167,44 @@ describe('calculateStatus', () => {
       12
     );
     expect(result.status).toBe('overdue');
+  });
+});
+
+describe('formatDueText', () => {
+  it('prefers km overdue over a future time interval', () => {
+    expect(
+      formatDueText({ status: 'overdue', dueInKm: -200, dueInDays: 10, progressPercent: 100 })
+    ).toBe('Overdue by 200 km');
+  });
+
+  it('shows time overdue when km side is fine', () => {
+    expect(
+      formatDueText({ status: 'overdue', dueInKm: 800, dueInDays: -3, progressPercent: 40 })
+    ).toBe('Overdue by 3 days');
+  });
+
+  it('shows whichever comes first when both are tracked', () => {
+    expect(
+      formatDueText({ status: 'upcoming', dueInKm: 2000, dueInDays: 10, progressPercent: 10 })
+    ).toBe('Due in 10 days');
+    // Smaller-number heuristic: 30 reads sooner than 500
+    expect(
+      formatDueText({ status: 'upcoming', dueInKm: 500, dueInDays: 30, progressPercent: 90 })
+    ).toBe('Due in 30 days');
+  });
+
+  it('handles single-interval tasks', () => {
+    expect(
+      formatDueText({ status: 'due', dueInKm: null, dueInDays: 5, progressPercent: 0 })
+    ).toBe('Due in 5 days');
+    expect(
+      formatDueText({ status: 'due', dueInKm: 300, dueInDays: null, progressPercent: 95 })
+    ).toBe('Due in 300 km');
+  });
+
+  it('handles no intervals', () => {
+    expect(
+      formatDueText({ status: 'upcoming', dueInKm: null, dueInDays: null, progressPercent: 0 })
+    ).toBe('No interval set');
   });
 });

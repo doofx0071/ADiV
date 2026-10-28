@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useEffect, useRef } from "react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +31,18 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 export default function AchievementsPage() {
   const achievements = useQuery(api.achievements.getAchievements);
   const stats = useQuery(api.achievements.getAchievementStats);
+  const checkAchievements = useMutation(api.achievements.checkAchievements);
+  const checkedRef = useRef(false);
+
+  // Re-evaluate unlocks on visit so this page never shows stale state
+  useEffect(() => {
+    if (achievements !== undefined && !checkedRef.current) {
+      checkedRef.current = true;
+      checkAchievements().catch(() => {
+        // Non-critical
+      });
+    }
+  }, [achievements, checkAchievements]);
 
   const unlockedTypes = new Set(achievements?.map((a) => a.type) ?? []);
 

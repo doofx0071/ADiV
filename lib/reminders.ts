@@ -34,10 +34,9 @@ export function calculateProgress(
   intervalKm: number | null
 ): number {
   if (intervalKm === null) return 0;
-  if (currentOdometer < lastServiceOdometer) {
-    throw new Error('Current odometer cannot be less than last service odometer');
-  }
   if (intervalKm <= 0) throw new Error('intervalKm must be positive');
+  // Clamp instead of throwing: a stale bike odometer (loggers sync it up
+  // after the fact) must degrade to 0% progress, never crash the caller.
   const progress = (currentOdometer - lastServiceOdometer) / intervalKm;
   return Math.min(Math.max(progress, 0), 1);
 }
@@ -81,9 +80,6 @@ export function calculateStatus(
   intervalMonths: number | null
 ): ReminderStatus {
   // Validate inputs
-  if (currentOdometer < lastServiceOdometer) {
-    throw new Error('Current odometer cannot be less than last service odometer');
-  }
   if (isAfter(startOfDay(lastServiceDate), startOfDay(currentDate))) {
     throw new Error('Last service date cannot be in the future');
   }
@@ -139,4 +135,31 @@ export function calculateStatus(
     dueInDays,
     progressPercent,
   };
+}
+
+/**
+ * Human-readable summary of a reminder status.
+ *
+ * Prefers the overdue dimension (km or time) and, when both intervals are
+ * tracked and neither is overdue, shows whichever comes first — so a
+ * time-overdue item never reads as "Due in 800 km".
+ */
+export function formatDueText(status: ReminderStatus): string {
+  const kmOverdue = status.dueInKm !== null && status.dueInKm < 0;
+  const daysOverdue = status.dueInDays !== null && status.dueInDays < 0;
+  if (kmOverdue) return `Overdue by ${Math.abs(status.dueInKm!)} km`;
+  if (daysOverdue) {
+    const days = Math.abs(status.dueInDays!);
+    return `Overdue by ${days} ${days === 1 ? "day" : "days"}`;
+  }
+  if (status.dueInKm !== null && status.dueInDays !== null) {
+    return status.dueInKm <= status.dueInDays
+      ? `Due in ${status.dueInKm} km`
+      : `Due in ${status.dueInDays} ${status.dueInDays === 1 ? "day" : "days"}`;
+  }
+  if (status.dueInKm !== null) return `Due in ${status.dueInKm} km`;
+  if (status.dueInDays !== null) {
+    return `Due in ${status.dueInDays} ${status.dueInDays === 1 ? "day" : "days"}`;
+  }
+  return "No interval set";
 }

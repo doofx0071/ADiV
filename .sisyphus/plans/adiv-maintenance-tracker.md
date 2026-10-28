@@ -67,13 +67,13 @@ Build a personal motorcycle maintenance tracker web app that makes keeping a Hon
 - Light cyber-moto theme with Tailwind config (dark mode available as toggle)
 
 ### Definition of Done
-- [ ] App loads on mobile (375px) and desktop (1440px) without layout breaks
-- [ ] Maintenance reminder engine correctly calculates upcoming/due/overdue statuses
-- [ ] Dashboard renders all widgets with real Convex data in <2s desktop / <4s mobile
-- [ ] All Vitest tests pass with >80% coverage on utility functions
-- [ ] Photo upload works on mobile Chrome/Safari (5MB limit, JPG/PNG only)
-- [ ] Fuel efficiency calculates correctly (km/L) from ride + fuel logs
-- [ ] Achievements trigger correctly (first service, streaks, mileage milestones)
+- [x] App loads on mobile (375px) and desktop (1440px) without layout breaks
+- [x] Maintenance reminder engine correctly calculates upcoming/due/overdue statuses
+- [x] Dashboard renders all widgets with real Convex data in <2s desktop / <4s mobile
+- [x] All Vitest tests pass with >80% coverage on utility functions
+- [x] Photo upload works on mobile Chrome/Safari (5MB limit, JPG/PNG only)
+- [x] Fuel efficiency calculates correctly (km/L) from ride + fuel logs
+- [x] Achievements trigger correctly (first service, streaks, mileage milestones)
 
 ### Must Have
 - Single bike profile with ADV160 specs
@@ -1677,9 +1677,9 @@ npx playwright test --project=mobile
 ```
 
 ### Final Checklist
-- [ ] All "Must Have" present
-- [ ] All "Must NOT Have" absent
-- [ ] All Vitest tests pass
-- [ ] Build completes with zero errors
-- [ ] Mobile responsive verified (375px - 1440px)
-- [ ] Evidence files exist for all QA scenarios
+- [x] All "Must Have" present
+- [x] All "Must NOT Have" absent
+- [x] All Vitest tests pass
+- [x] Build completes with zero errors
+- [x] Mobile responsive verified (375px - 1440px)
+- [x] Evidence files exist for all QA scenarios

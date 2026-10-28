@@ -14,13 +14,13 @@ export const ACHIEVEMENT_DEFS = [
   {
     type: "streak_3",
     name: "On a Roll",
-    description: "Complete 3 maintenance items on time",
+    description: "Service 3 different maintenance items",
     icon: "flame",
   },
   {
     type: "streak_10",
     name: "Maintenance Master",
-    description: "Complete 10 maintenance items on time",
+    description: "Service 10 different maintenance items",
     icon: "award",
   },
   {

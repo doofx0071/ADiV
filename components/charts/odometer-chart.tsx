@@ -3,11 +3,21 @@
 import { useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ChartEmptyState, ChartSkeletonBody } from "@/components/charts/chart-states";
 import { AreaChart } from "@tremor/react";
+import { Gauge } from "lucide-react";
 
 export function OdometerChart() {
   const rides = useQuery(api.rides.getRides, { limit: 100 });
+
+  const isLoading = rides === undefined;
 
   const data = useMemo(() => {
     if (!rides || rides.length === 0) return [];
@@ -24,37 +34,34 @@ export function OdometerChart() {
     }));
   }, [rides]);
 
-  const hasData = data.length > 0;
-
-  if (!hasData) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Odometer Progression</CardTitle>
-        </CardHeader>
-        <CardContent className="h-64 flex items-center justify-center text-muted-foreground">
-          No rides logged yet — record rides to track odometer progression
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Odometer Progression</CardTitle>
+        <CardDescription>Recorded odometer at each ride</CardDescription>
       </CardHeader>
       <CardContent>
-        <AreaChart
-          className="h-64"
-          data={data}
-          index="date"
-          categories={["odometer"]}
-          colors={["red"]}
-          yAxisWidth={80}
-          valueFormatter={(value) => `${value.toLocaleString()} km`}
-          showLegend={false}
-        />
+        {isLoading ? (
+          <ChartSkeletonBody />
+        ) : data.length > 0 ? (
+          <AreaChart
+            className="h-64"
+            data={data}
+            index="date"
+            categories={["odometer"]}
+            colors={["emerald"]}
+            yAxisWidth={80}
+            valueFormatter={(value) => `${value.toLocaleString()} km`}
+            showLegend={false}
+          />
+        ) : (
+          <ChartEmptyState
+            icon={<Gauge />}
+            title="No rides logged yet"
+            description="Record your rides to watch the odometer climb over time."
+            ctaLabel="Log a ride"
+          />
+        )}
       </CardContent>
     </Card>
   );
