@@ -1,20 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import Link from "next/link";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { StatCard } from "@/components/layout/stat-card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { OdometerEditor } from "@/components/maintenance/odometer-editor";
 import {
   Gauge,
   Route,
@@ -24,7 +14,11 @@ import {
   CalendarCheck,
 } from "lucide-react";
 import { startOfMonth, endOfMonth } from "date-fns";
-import { calculateStatus, formatDueText } from "@/lib/reminders";
+import {
+  evaluateMaintenanceItems,
+  formatDueText,
+  summarizeMaintenanceEvaluations,
+} from "@/lib/reminders";
 
 export function DashboardStats() {
   const bike = useQuery(api.bike.getBike);
@@ -32,26 +26,6 @@ export function DashboardStats() {
   const fuelStats = useQuery(api.fuel.getFuelStats);
   const expenses = useQuery(api.expenses.getExpenses, { limit: 100 });
   const maintenanceItems = useQuery(api.maintenance.getMaintenanceItems);
-  const updateOdometer = useMutation(api.bike.updateOdometer);
-
-  const [odometerOpen, setOdometerOpen] = useState(false);
-  const [newOdometer, setNewOdometer] = useState("");
-  const [savingOdometer, setSavingOdometer] = useState(false);
-
-  const handleOdometerSave = async () => {
-    const val = Number(newOdometer);
-    if (!val || val < 0) { toast.error("Enter a valid odometer reading"); return; }
-    setSavingOdometer(true);
-    try {
-      await updateOdometer({ currentOdometer: val });
-      toast.success("Odometer updated");
-      setOdometerOpen(false);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
-    } finally {
-      setSavingOdometer(false);
-    }
-  };
 
   if (!bike || rides === undefined || fuelStats === undefined || expenses === undefined || maintenanceItems === undefined) {
     return (
@@ -81,44 +55,42 @@ export function DashboardStats() {
   // Items serviced so far (honest count — on-time tracking is not recorded)
   const servicedCount = maintenanceItems?.filter((item) => item.lastServiceDate).length ?? 0;
 
-  // Find next due task via the shared reminder engine
-  const upcomingItems = maintenanceItems
-    ?.filter((item) => item.lastServiceDate && (item.intervalKm || item.intervalMonths))
-    .map((item) => ({
-      ...item,
-      status: calculateStatus(
-        bike.currentOdometer,
-        new Date(now),
-        item.lastServiceOdometer ?? 0,
-        new Date(item.lastServiceDate ?? now),
-        item.intervalKm ?? null,
-        item.intervalMonths
-      ),
-    }))
-    .filter((item) => (item.status.dueInKm !== null && item.status.dueInKm <= 1000) || (item.status.dueInDays !== null && item.status.dueInDays <= 30))
-    .sort((a, b) => {
-      const priority = { overdue: 0, due: 1, upcoming: 2 };
-      return priority[a.status.status] - priority[b.status.status];
-    });
-
-  const nextDue = upcomingItems?.[0];
-  const nextDueLabel = nextDue
-    ? `${nextDue.name} — ${formatDueText(nextDue.status)}`
-    : "All good!";
+  const maintenanceReadiness = evaluateMaintenanceItems(maintenanceItems, bike.currentOdometer, new Date(now));
+  const maintenanceSummary = summarizeMaintenanceEvaluations(maintenanceReadiness);
+  const nextDue = maintenanceReadiness.find((evaluation) =>
+    evaluation.status === "overdue" ||
+    evaluation.status === "due" ||
+    evaluation.status === "upcoming"
+  );
+  const nextDueValue = nextDue
+    ? nextDue.item.name
+    : maintenanceSummary.needsHistory > 0
+      ? "Needs history"
+      : "Clear";
+  const nextDueDescription = nextDue
+    ? `${nextDue.status === "overdue" ? "Overdue" : nextDue.status === "due" ? "Due soon" : "Upcoming"} · ${formatDueText(nextDue)}${nextDue.historyComplete ? "" : " · Needs history"}`
+    : maintenanceSummary.needsHistory > 0
+      ? `${maintenanceSummary.needsHistory} item${maintenanceSummary.needsHistory === 1 ? "" : "s"} need confirmed service details`
+      : `No scheduled service due soon · ${maintenanceSummary.historyComplete}/${maintenanceSummary.total} tracked`;
 
   return (
     <>
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <button
-        onClick={() => { setNewOdometer(String(bike.currentOdometer)); setOdometerOpen(true); }}
-        className="text-left cursor-pointer hover:opacity-80 transition-opacity"
-      >
-        <StatCard
-          title="Current Odometer"
-          value={`${bike.currentOdometer.toLocaleString()} km`}
-          icon={<Gauge className="h-4 w-4" />}
-        />
-      </button>
+      <OdometerEditor
+        currentOdometer={bike.currentOdometer}
+        trigger={
+          <button
+            type="button"
+            className="w-full cursor-pointer text-left transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <StatCard
+              title="Current Odometer"
+              value={`${bike.currentOdometer.toLocaleString()} km`}
+              icon={<Gauge className="h-4 w-4" />}
+            />
+          </button>
+        }
+      />
       <StatCard
         title="This Month's Rides"
         value={`${thisMonthRides.length}`}
@@ -142,46 +114,20 @@ export function DashboardStats() {
         description="Of your maintenance list"
         icon={<Wrench className="h-4 w-4" />}
       />
-      <StatCard
-        title="Next Due"
-        value={nextDueLabel}
-        icon={<CalendarCheck className="h-4 w-4" />}
-      />
+      <Link
+        href="/maintenance"
+        aria-label={`Open maintenance center. ${nextDueDescription}`}
+        className="block min-w-0 cursor-pointer rounded-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <StatCard
+          title="Next Due"
+          value={nextDueValue}
+          description={nextDueDescription}
+          icon={<CalendarCheck className="h-4 w-4" />}
+          className="transition-colors hover:ring-primary/40"
+        />
+      </Link>
     </div>
-
-    {/* Odometer Edit Dialog */}
-    <Dialog open={odometerOpen} onOpenChange={setOdometerOpen}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Edit Odometer</DialogTitle>
-          <DialogDescription>
-            Update your current odometer reading
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 pt-2">
-          <div className="space-y-2">
-            <Label htmlFor="odometer-input">Current Odometer (km)</Label>
-            <Input
-              id="odometer-input"
-              name="currentOdometer"
-              type="number"
-              inputMode="numeric"
-              value={newOdometer}
-              onChange={(e) => setNewOdometer(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="flex gap-3">
-            <Button onClick={handleOdometerSave} disabled={savingOdometer} className="flex-1">
-              {savingOdometer ? "Saving..." : "Save"}
-            </Button>
-            <Button variant="outline" onClick={() => setOdometerOpen(false)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
     </>
   );
 }

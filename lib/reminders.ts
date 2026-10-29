@@ -7,6 +7,176 @@ export interface ReminderStatus {
   progressPercent: number;
 }
 
+export type MaintenanceReadinessStatus =
+  | 'overdue'
+  | 'due'
+  | 'upcoming'
+  | 'clear'
+  | 'needs-history';
+
+export type MissingServiceBaseline = 'service-date' | 'service-odometer';
+
+export interface MaintenanceBaselineItem {
+  intervalKm?: number | null;
+  intervalMonths?: number | null;
+  lastServiceDate?: number | null;
+  lastServiceOdometer?: number | null;
+}
+
+export interface MaintenanceEvaluation<T extends MaintenanceBaselineItem> {
+  item: T;
+  status: MaintenanceReadinessStatus;
+  knownStatus: 'overdue' | 'due' | 'upcoming' | 'clear' | null;
+  historyComplete: boolean;
+  missingBaseline: MissingServiceBaseline[];
+  dueAtOdometer: number | null;
+  dueAtDate: Date | null;
+  dueInKm: number | null;
+  dueInDays: number | null;
+  progressKm: number | null;
+  progressTime: number | null;
+  urgencyScore: number;
+}
+
+export interface MaintenanceEvaluationSummary {
+  total: number;
+  historyComplete: number;
+  needsHistory: number;
+  overdue: number;
+  due: number;
+  upcoming: number;
+  clear: number;
+}
+
+const READINESS_PRIORITY: Record<MaintenanceReadinessStatus, number> = {
+  overdue: 0,
+  due: 1,
+  upcoming: 2,
+  'needs-history': 3,
+  clear: 4,
+};
+
+function statusFromRemaining(
+  remaining: number,
+  dueThreshold: number,
+  upcomingThreshold: number
+): 'overdue' | 'due' | 'upcoming' | 'clear' {
+  if (remaining < 0) return 'overdue';
+  if (remaining <= dueThreshold) return 'due';
+  if (remaining <= upcomingThreshold) return 'upcoming';
+  return 'clear';
+}
+
+function mostUrgentStatus(
+  statuses: Array<'overdue' | 'due' | 'upcoming' | 'clear'>
+): 'overdue' | 'due' | 'upcoming' | 'clear' | null {
+  if (statuses.length === 0) return null;
+  if (statuses.includes('overdue')) return 'overdue';
+  if (statuses.includes('due')) return 'due';
+  if (statuses.includes('upcoming')) return 'upcoming';
+  return 'clear';
+}
+
+/**
+ * Evaluate maintenance without inventing missing service baselines.
+ * Distance and time are assessed independently; only known dimensions are
+ * calculated, and incomplete history can never be labeled clear.
+ */
+export function evaluateMaintenanceItem<T extends MaintenanceBaselineItem>(
+  item: T,
+  currentOdometer: number,
+  currentDate: Date
+): MaintenanceEvaluation<T> {
+  const missingBaseline: MissingServiceBaseline[] = [];
+  const dimensionStatuses: Array<'overdue' | 'due' | 'upcoming' | 'clear'> = [];
+  const intervalKm = item.intervalKm ?? null;
+  const intervalMonths = item.intervalMonths ?? null;
+  let dueAtOdometer: number | null = null;
+  let dueAtDate: Date | null = null;
+  let dueInKm: number | null = null;
+  let dueInDays: number | null = null;
+  let progressKm: number | null = null;
+  let progressTime: number | null = null;
+
+  if (intervalMonths !== null && intervalMonths > 0) {
+    if (item.lastServiceDate === undefined || item.lastServiceDate === null) {
+      missingBaseline.push('service-date');
+    } else if (item.lastServiceDate > currentDate.getTime()) {
+      missingBaseline.push('service-date');
+    } else {
+      const lastServiceDate = new Date(item.lastServiceDate);
+      dueAtDate = getDueDate(lastServiceDate, intervalMonths);
+      dueInDays = differenceInDays(dueAtDate, currentDate);
+      dimensionStatuses.push(statusFromRemaining(dueInDays, 7, 30));
+      const intervalDuration = dueAtDate.getTime() - lastServiceDate.getTime();
+      progressTime = intervalDuration > 0
+        ? Math.max(0, (currentDate.getTime() - lastServiceDate.getTime()) / intervalDuration)
+        : null;
+    }
+  }
+
+  if (intervalKm !== null && intervalKm > 0) {
+    if (item.lastServiceOdometer === undefined || item.lastServiceOdometer === null) {
+      missingBaseline.push('service-odometer');
+    } else {
+      dueAtOdometer = getDueOdometer(item.lastServiceOdometer, intervalKm);
+      dueInKm = dueAtOdometer - currentOdometer;
+      dimensionStatuses.push(statusFromRemaining(dueInKm, 500, 1000));
+      progressKm = Math.max(0, (currentOdometer - item.lastServiceOdometer) / intervalKm);
+    }
+  }
+
+  const knownStatus = mostUrgentStatus(dimensionStatuses);
+  const historyComplete = missingBaseline.length === 0;
+  const status: MaintenanceReadinessStatus = !historyComplete &&
+      (knownStatus === null || knownStatus === 'clear')
+    ? 'needs-history'
+    : knownStatus ?? 'clear';
+
+  return {
+    item,
+    status,
+    knownStatus,
+    historyComplete,
+    missingBaseline,
+    dueAtOdometer,
+    dueAtDate,
+    dueInKm,
+    dueInDays,
+    progressKm,
+    progressTime,
+    urgencyScore: Math.max(progressKm ?? -1, progressTime ?? -1),
+  };
+}
+
+export function evaluateMaintenanceItems<T extends MaintenanceBaselineItem>(
+  items: T[],
+  currentOdometer: number,
+  currentDate: Date
+): MaintenanceEvaluation<T>[] {
+  return items
+    .map((item) => evaluateMaintenanceItem(item, currentOdometer, currentDate))
+    .sort((a, b) => {
+      const priorityDifference = READINESS_PRIORITY[a.status] - READINESS_PRIORITY[b.status];
+      if (priorityDifference !== 0) return priorityDifference;
+      return b.urgencyScore - a.urgencyScore;
+    });
+}
+
+export function summarizeMaintenanceEvaluations<T extends MaintenanceBaselineItem>(
+  evaluations: MaintenanceEvaluation<T>[]
+): MaintenanceEvaluationSummary {
+  return {
+    total: evaluations.length,
+    historyComplete: evaluations.filter((evaluation) => evaluation.historyComplete).length,
+    needsHistory: evaluations.filter((evaluation) => !evaluation.historyComplete).length,
+    overdue: evaluations.filter((evaluation) => evaluation.knownStatus === 'overdue').length,
+    due: evaluations.filter((evaluation) => evaluation.knownStatus === 'due').length,
+    upcoming: evaluations.filter((evaluation) => evaluation.knownStatus === 'upcoming').length,
+    clear: evaluations.filter((evaluation) => evaluation.status === 'clear').length,
+  };
+}
+
 /**
  * Calculate the due odometer reading based on last service and interval.
  */
@@ -138,28 +308,23 @@ export function calculateStatus(
 }
 
 /**
- * Human-readable summary of a reminder status.
- *
- * Prefers the overdue dimension (km or time) and, when both intervals are
- * tracked and neither is overdue, shows whichever comes first — so a
- * time-overdue item never reads as "Due in 800 km".
+ * Human-readable summary of every available reminder dimension.
+ * Distance and time are always shown separately; their raw values are never
+ * compared because kilometers and days are different units.
  */
-export function formatDueText(status: ReminderStatus): string {
-  const kmOverdue = status.dueInKm !== null && status.dueInKm < 0;
-  const daysOverdue = status.dueInDays !== null && status.dueInDays < 0;
-  if (kmOverdue) return `Overdue by ${Math.abs(status.dueInKm!)} km`;
-  if (daysOverdue) {
-    const days = Math.abs(status.dueInDays!);
-    return `Overdue by ${days} ${days === 1 ? "day" : "days"}`;
+export function formatDueText(status: Pick<ReminderStatus, 'dueInKm' | 'dueInDays'>): string {
+  const dimensions: string[] = [];
+  if (status.dueInKm !== null) {
+    dimensions.push(status.dueInKm < 0
+      ? `Overdue by ${Math.abs(status.dueInKm).toLocaleString()} km`
+      : `Due in ${status.dueInKm.toLocaleString()} km`);
   }
-  if (status.dueInKm !== null && status.dueInDays !== null) {
-    return status.dueInKm <= status.dueInDays
-      ? `Due in ${status.dueInKm} km`
-      : `Due in ${status.dueInDays} ${status.dueInDays === 1 ? "day" : "days"}`;
-  }
-  if (status.dueInKm !== null) return `Due in ${status.dueInKm} km`;
   if (status.dueInDays !== null) {
-    return `Due in ${status.dueInDays} ${status.dueInDays === 1 ? "day" : "days"}`;
+    const days = Math.abs(status.dueInDays);
+    const unit = days === 1 ? 'day' : 'days';
+    dimensions.push(status.dueInDays < 0
+      ? `Overdue by ${days} ${unit}`
+      : `Due in ${days} ${unit}`);
   }
-  return "No interval set";
+  return dimensions.length > 0 ? dimensions.join(' · ') : 'No interval set';
 }

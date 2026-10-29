@@ -13,7 +13,8 @@ export const getMaintenanceItems = query({
       name: v.string(),
       category: v.string(),
       intervalKm: v.optional(v.number()),
-      intervalMonths: v.number(),
+      intervalMonths: v.optional(v.number()),
+      intervalSource: v.optional(v.string()),
       description: v.optional(v.string()),
       serviceLevel: v.optional(v.string()),
       notes: v.optional(v.string()),
@@ -26,6 +27,125 @@ export const getMaintenanceItems = query({
     return items.sort(
       (a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)
     );
+  },
+});
+
+function cleanOptionalText(value?: string): string | undefined {
+  const cleaned = value?.trim();
+  return cleaned || undefined;
+}
+
+function validateMaintenanceItem(args: {
+  name: string;
+  category: string;
+  intervalKm?: number;
+  intervalMonths?: number;
+  intervalSource?: string;
+}) {
+  if (!args.name.trim()) throw new Error("Maintenance item name is required");
+  if (!args.category.trim()) throw new Error("Maintenance category is required");
+  if (args.name.trim().length > 120) throw new Error("Maintenance item name must be 120 characters or fewer");
+  if (args.category.trim().length > 60) throw new Error("Maintenance category must be 60 characters or fewer");
+  if (args.intervalSource && args.intervalSource.trim().length > 300) {
+    throw new Error("Interval source must be 300 characters or fewer");
+  }
+  if (args.intervalKm !== undefined && (!Number.isInteger(args.intervalKm) || args.intervalKm <= 0)) {
+    throw new Error("Distance interval must be a positive whole number of kilometers");
+  }
+  if (args.intervalMonths !== undefined && (!Number.isInteger(args.intervalMonths) || args.intervalMonths <= 0)) {
+    throw new Error("Time interval must be a positive whole number of months");
+  }
+}
+
+/** Create a user-editable maintenance schedule item. */
+export const createMaintenanceItem = mutation({
+  args: {
+    name: v.string(),
+    category: v.string(),
+    intervalKm: v.optional(v.number()),
+    intervalMonths: v.optional(v.number()),
+    intervalSource: v.optional(v.string()),
+    description: v.optional(v.string()),
+    serviceLevel: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  },
+  returns: v.id("maintenanceItems"),
+  handler: async (ctx, args) => {
+    validateMaintenanceItem(args);
+    return ctx.db.insert("maintenanceItems", {
+      name: args.name.trim(),
+      category: args.category.trim().toLowerCase(),
+      intervalKm: args.intervalKm,
+      intervalMonths: args.intervalMonths,
+      intervalSource: cleanOptionalText(args.intervalSource),
+      description: cleanOptionalText(args.description),
+      serviceLevel: cleanOptionalText(args.serviceLevel),
+      notes: cleanOptionalText(args.notes),
+    });
+  },
+});
+
+/** Update schedule details without changing the item's confirmed service baseline. */
+export const updateMaintenanceItem = mutation({
+  args: {
+    itemId: v.id("maintenanceItems"),
+    name: v.string(),
+    category: v.string(),
+    intervalKm: v.optional(v.number()),
+    intervalMonths: v.optional(v.number()),
+    intervalSource: v.optional(v.string()),
+    description: v.optional(v.string()),
+    serviceLevel: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const item = await ctx.db.get(args.itemId);
+    if (!item) throw new Error("Maintenance item not found");
+    validateMaintenanceItem(args);
+    await ctx.db.patch(args.itemId, {
+      name: args.name.trim(),
+      category: args.category.trim().toLowerCase(),
+      intervalKm: args.intervalKm,
+      intervalMonths: args.intervalMonths,
+      intervalSource: cleanOptionalText(args.intervalSource),
+      description: cleanOptionalText(args.description),
+      serviceLevel: cleanOptionalText(args.serviceLevel),
+      notes: cleanOptionalText(args.notes),
+    });
+    return null;
+  },
+});
+
+/** Check whether a schedule item has service history before offering deletion. */
+export const hasMaintenanceLogs = query({
+  args: { itemId: v.id("maintenanceItems") },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const log = await ctx.db
+      .query("maintenanceLogs")
+      .withIndex("by_item", (q) => q.eq("itemId", args.itemId))
+      .first();
+    return log !== null;
+  },
+});
+
+/** Delete only unused schedule items; confirmed service history is preserved. */
+export const deleteMaintenanceItem = mutation({
+  args: { itemId: v.id("maintenanceItems") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const item = await ctx.db.get(args.itemId);
+    if (!item) throw new Error("Maintenance item not found");
+    const log = await ctx.db
+      .query("maintenanceLogs")
+      .withIndex("by_item", (q) => q.eq("itemId", args.itemId))
+      .first();
+    if (log) {
+      throw new Error("This item has service history. Delete its service logs first to protect your records.");
+    }
+    await ctx.db.delete(args.itemId);
+    return null;
   },
 });
 

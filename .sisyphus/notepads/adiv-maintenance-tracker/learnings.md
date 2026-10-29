@@ -79,7 +79,7 @@
 ## [2026-06-02] T4: Seed Maintenance Items - COMPLETED
 
 ### Files Created
-- `convex/seedData.ts` — 25 Honda ADV160 maintenance items with official intervals, categories, descriptions, service levels, and notes
+- `convex/seedData.ts` — 25 legacy Honda ADV160 starter items with uncited intervals, categories, descriptions, service levels, and notes
 - `convex/seed.ts` — Idempotent seed mutation (`seed.js:seed`) and count query (`seed.js:getCount`)
 - `__tests__/convex/seedData.test.ts` — 22 Vitest tests verifying data completeness
 
@@ -104,7 +104,10 @@
 - 91/91 Vitest tests passing (4 files)
 - LSP diagnostics: 0 errors
 
-### Official Honda ADV160 Intervals Used
+### Legacy Starter Intervals (Source Citations Not Retained)
+
+> Provenance correction (2026-10-29): The original notes and seed comments called these values official Honda intervals, but the app did not retain a market/year/manual/page citation for each item. The seed list is a legacy hybrid starter schedule, not a verified schedule for every ADV160 market or model year. Keep the values editable and verify the exact motorcycle's manual before treating them as authoritative. The table below records what was seeded, not an endorsement of its accuracy.
+
 | Item | Km | Months |
 |------|----|--------|
 | Engine Oil | 6,000 | 12 |

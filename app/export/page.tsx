@@ -119,7 +119,7 @@ export default function ExportPage() {
   };
 
   return (
-    <main className="flex flex-col p-4 md:p-8">
+    <main className="flex flex-col p-3 sm:p-4 md:p-8">
       <div className="mx-auto w-full max-w-2xl space-y-6">
         <PageHeader title="Data Export" description="Download your motorcycle data" />
 
@@ -133,7 +133,7 @@ export default function ExportPage() {
               <Button
                 onClick={downloadJSON}
                 disabled={isLoading || isExporting}
-                className="gap-2"
+                className="w-full gap-2 sm:w-auto"
               >
                 <FileJson className="h-4 w-4" />
                 Download JSON
@@ -149,7 +149,7 @@ export default function ExportPage() {
                 onClick={downloadCSV}
                 disabled={isLoading || isExporting}
                 variant="secondary"
-                className="gap-2"
+                className="w-full gap-2 sm:w-auto"
               >
                 <FileSpreadsheet className="h-4 w-4" />
                 Download CSV

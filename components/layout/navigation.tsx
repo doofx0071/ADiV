@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,10 +13,12 @@ import {
   Download,
   BarChart3,
   Image,
+  Wrench,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", shortLabel: "Home", icon: LayoutDashboard },
+  { href: "/maintenance", label: "Maintenance", shortLabel: "Maint.", icon: Wrench },
   { href: "/analytics", label: "Analytics", shortLabel: "Stats", icon: BarChart3 },
   { href: "/gallery", label: "Gallery", shortLabel: "Gallery", icon: Image },
   { href: "/history", label: "History", shortLabel: "History", icon: History },
@@ -94,6 +97,38 @@ function useIsSetUpPage() {
   return pathname === "/setup";
 }
 
+function HeaderLogo({ src }: { src: string }) {
+  const [showAlternate, setShowAlternate] = useState(false);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setShowAlternate((current) => !current);
+    }, 4500);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  return (
+    <Link
+      href="/dashboard"
+      aria-label="AdiV dashboard"
+      className="absolute left-3 flex h-11 w-[min(200px,calc(100vw-6rem))] items-center md:left-4"
+    >
+      <img
+        src={src}
+        alt="AdiV"
+        className={`header-logo-layer absolute inset-0 h-11 w-full object-contain object-center ${showAlternate ? "opacity-0" : "opacity-100"}`}
+      />
+      <img
+        src="/ADiV-shesh.png"
+        alt=""
+        aria-hidden="true"
+        className={`header-logo-layer absolute inset-0 h-11 w-full object-contain object-center ${showAlternate ? "opacity-100" : "opacity-0"}`}
+      />
+    </Link>
+  );
+}
+
 function TopHeader() {
   const pathname = usePathname();
   const { resolvedTheme } = useTheme();
@@ -105,14 +140,12 @@ function TopHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-      <div className="relative mx-auto flex h-14 max-w-6xl items-center justify-center px-4 md:h-16">
+      <div className="relative flex h-14 w-full items-center justify-center px-4 md:h-16">
         {/* Logo - absolute left, doesn't affect nav centering */}
-        <Link href="/dashboard" className="absolute left-4">
-          <img src={logoSrc} alt="AdiV" className="h-11 max-w-[200px] w-auto" />
-        </Link>
+        <HeaderLogo src={logoSrc} />
 
         {/* Nav links - centered in header (bottom bar covers mobile) */}
-        <nav className="hidden items-center justify-center md:flex">
+        <nav className="hidden items-center justify-center xl:flex">
           {NAV_ITEMS.map((item) => (
             <NavLink key={item.href} {...item} />
           ))}
@@ -134,9 +167,9 @@ function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur xl:hidden"
     >
-      <div className="mx-auto grid max-w-2xl grid-cols-6">
+      <div className="mx-auto grid max-w-2xl grid-cols-7">
         {NAV_ITEMS.map((item) => (
           <BottomNavItem key={item.href} {...item} />
         ))}

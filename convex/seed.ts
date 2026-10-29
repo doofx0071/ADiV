@@ -1,6 +1,7 @@
 /**
- * Seed mutation — populates the maintenanceItems table with the official
- * Honda ADV160 maintenance schedule.
+ * Seed mutation — populates maintenanceItems with the app's legacy starter
+ * schedule. The seed values are editable and do not include per-item source
+ * citations.
  *
  * IDEMPOTENT: If any maintenance items already exist, the mutation skips
  * seeding. Running it multiple times will not duplicate data.

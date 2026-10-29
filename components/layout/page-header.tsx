@@ -30,7 +30,7 @@ function PageHeader({
           <p className="text-sm text-muted-foreground">{description}</p>
         )}
       </div>
-      {action && <div className="flex items-center gap-2">{action}</div>}
+      {action && <div className="w-full md:w-auto">{action}</div>}
     </div>
   );
 }

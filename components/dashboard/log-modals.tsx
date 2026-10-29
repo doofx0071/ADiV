@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CalendarDatePicker } from "@/components/ui/calendar-date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -46,9 +47,16 @@ interface PendingPhoto {
 interface Props {
   type: ModalType;
   onClose: () => void;
+  initialMaintenanceItemId?: Id<"maintenanceItems">;
+  maintenanceEntryMode?: "service" | "history";
 }
 
-export function LogModal({ type, onClose }: Props) {
+export function LogModal({
+  type,
+  onClose,
+  initialMaintenanceItemId,
+  maintenanceEntryMode = "service",
+}: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const today = format(new Date(), "yyyy-MM-dd");
 
@@ -63,8 +71,13 @@ export function LogModal({ type, onClose }: Props) {
   const logFuel = useMutation(api.fuel.logFuel);
 
   // Maintenance form
-  const [maintForm, setMaintForm] = useState({ itemId: "", odometer: "", cost: "", notes: "" });
-  const [maintDate, setMaintDate] = useState(today);
+  const [maintForm, setMaintForm] = useState({
+    itemId: initialMaintenanceItemId ?? "",
+    odometer: "",
+    cost: "",
+    notes: "",
+  });
+  const [maintDate, setMaintDate] = useState(maintenanceEntryMode === "history" ? "" : today);
   const [maintPhotos, setMaintPhotos] = useState<PendingPhoto[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const maintenanceItems = useQuery(api.maintenance.getMaintenanceItems);
@@ -149,9 +162,15 @@ export function LogModal({ type, onClose }: Props) {
         toast.success("Fuel log added!");
       } else if (type === "maintenance") {
         if (!maintForm.itemId) { toast.error("Select a maintenance item"); return; }
+        if (!maintDate) { toast.error("Select the confirmed service date"); return; }
+        const serviceOdometer = Number(maintForm.odometer);
+        if (!Number.isFinite(serviceOdometer) || serviceOdometer < 0) {
+          toast.error("Enter the confirmed service odometer");
+          return;
+        }
         const logId = await logMaintenance({
           itemId: maintForm.itemId as Id<"maintenanceItems">,
-          odometer: Number(maintForm.odometer),
+          odometer: serviceOdometer,
           date: toDateMs(maintDate),
           cost: maintForm.cost ? Number(maintForm.cost) : undefined,
           notes: maintForm.notes || undefined,
@@ -225,7 +244,10 @@ export function LogModal({ type, onClose }: Props) {
           <DialogDescription>
             {type === "ride" && "Record a new ride"}
             {type === "fuel" && "Record a fuel-up"}
-            {type === "maintenance" && "Record maintenance work"}
+            {type === "maintenance" && maintenanceEntryMode === "history" &&
+              "Enter a confirmed past service date and odometer. Unknown values stay unrecorded."}
+            {type === "maintenance" && maintenanceEntryMode === "service" &&
+              "Record the completed service date, odometer, and details."}
             {type === "expense" && "Record a new expense"}
           </DialogDescription>
         </DialogHeader>
@@ -236,8 +258,8 @@ export function LogModal({ type, onClose }: Props) {
             <>
               <div className="space-y-2">
                 <Label htmlFor="ride-date">Date *</Label>
-                <Input id="ride-date" type="date" required max={today} value={rideDate}
-                  onChange={(e) => setRideDate(e.target.value)} />
+                <CalendarDatePicker id="ride-date" required max={today} value={rideDate}
+                  onChange={setRideDate} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -272,8 +294,8 @@ export function LogModal({ type, onClose }: Props) {
             <>
               <div className="space-y-2">
                 <Label htmlFor="fuel-date">Date *</Label>
-                <Input id="fuel-date" type="date" required max={today} value={fuelDate}
-                  onChange={(e) => setFuelDate(e.target.value)} />
+                <CalendarDatePicker id="fuel-date" required max={today} value={fuelDate}
+                  onChange={setFuelDate} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -315,7 +337,9 @@ export function LogModal({ type, onClose }: Props) {
                 <Label htmlFor="maint-item">Maintenance Item *</Label>
                 <Select value={maintForm.itemId}
                   onValueChange={(v) => setMaintForm({ ...maintForm, itemId: v })}>
-                  <SelectTrigger id="maint-item"><SelectValue placeholder="Select item..." /></SelectTrigger>
+                  <SelectTrigger id="maint-item" className="h-11 min-h-11 w-full cursor-pointer">
+                    <SelectValue placeholder="Select item..." />
+                  </SelectTrigger>
                   <SelectContent>
                     {maintenanceItems?.map((item) => (
                       <SelectItem key={item._id} value={item._id}>{item.name}</SelectItem>
@@ -324,20 +348,23 @@ export function LogModal({ type, onClose }: Props) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="maint-date">Date *</Label>
-                <Input id="maint-date" type="date" required max={today} value={maintDate}
-                  onChange={(e) => setMaintDate(e.target.value)} />
+                <Label htmlFor="maint-date">{maintenanceEntryMode === "history" ? "Confirmed service date *" : "Date *"}</Label>
+                <CalendarDatePicker id="maint-date" required max={today} value={maintDate}
+                  className="h-11 min-h-11 cursor-pointer text-sm"
+                  onChange={setMaintDate} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="maint-odometer">Odometer (km) *</Label>
-                  <Input id="maint-odometer" name="odometer" type="number" inputMode="numeric" required
+                  <Label htmlFor="maint-odometer">{maintenanceEntryMode === "history" ? "Confirmed service odometer (km) *" : "Odometer (km) *"}</Label>
+                  <Input id="maint-odometer" name="odometer" type="number" min="0" step="any" inputMode="decimal" required
+                    className="h-11 min-h-11 text-sm"
                     value={maintForm.odometer}
                     onChange={(e) => setMaintForm({ ...maintForm, odometer: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="maint-cost">Cost (₱)</Label>
                   <Input id="maint-cost" name="cost" type="number" step="0.01" inputMode="decimal"
+                    className="h-11 min-h-11 text-sm"
                     value={maintForm.cost}
                     onChange={(e) => setMaintForm({ ...maintForm, cost: e.target.value })} />
                 </div>
@@ -356,7 +383,7 @@ export function LogModal({ type, onClose }: Props) {
                   multiple
                   onChange={handlePhotoSelect}
                   disabled={isUploading || maintPhotos.length >= MAX_PHOTOS}
-                  className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
+                  className="block min-h-11 w-full cursor-pointer text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
                 />
                 {maintPhotos.length > 0 && (
                   <ul className="space-y-1.5">
@@ -370,7 +397,7 @@ export function LogModal({ type, onClose }: Props) {
                           type="button"
                           onClick={() => removePhoto(photo.storageId)}
                           aria-label={`Remove ${photo.file.name}`}
-                          className="shrink-0 rounded p-1 hover:bg-muted"
+                          className="min-h-11 min-w-11 shrink-0 cursor-pointer rounded p-1 hover:bg-muted"
                         >
                           <X className="h-4 w-4" aria-hidden="true" />
                         </button>
@@ -388,8 +415,8 @@ export function LogModal({ type, onClose }: Props) {
             <>
               <div className="space-y-2">
                 <Label htmlFor="exp-date">Date *</Label>
-                <Input id="exp-date" type="date" required max={today} value={expDate}
-                  onChange={(e) => setExpDate(e.target.value)} />
+                <CalendarDatePicker id="exp-date" required max={today} value={expDate}
+                  onChange={setExpDate} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="exp-category">Category *</Label>
@@ -418,10 +445,10 @@ export function LogModal({ type, onClose }: Props) {
           )}
 
           <div className="flex gap-3 pt-2">
-            <Button type="submit" disabled={isSubmitting || isUploading} className="flex-1">
+            <Button type="submit" disabled={isSubmitting || isUploading} className="min-h-11 flex-1 cursor-pointer">
               {isSubmitting ? "Saving..." : "Save"}
             </Button>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" className="min-h-11 cursor-pointer" onClick={onClose}>
               Cancel
             </Button>
           </div>

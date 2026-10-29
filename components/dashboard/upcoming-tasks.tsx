@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/layout/status-badge";
-import { Wrench, Bell, BellOff } from "lucide-react";
-import {
-  calculateStatus,
-  formatDueText,
-} from "@/lib/reminders";
+import { Badge } from "@/components/ui/badge";
+import { MaintenanceItemRow } from "@/components/maintenance/maintenance-item-row";
+import { OdometerEditor } from "@/components/maintenance/odometer-editor";
+import { LogModal } from "@/components/dashboard/log-modals";
+import { Bell, BellOff, Gauge, Wrench } from "lucide-react";
+import { evaluateMaintenanceItems, summarizeMaintenanceEvaluations } from "@/lib/reminders";
 import {
   areNotificationsSupported,
   getNotificationPermission,
@@ -34,38 +36,47 @@ function notifyPermissionChanged() {
 export function UpcomingTasksWidget() {
   const bike = useQuery(api.bike.getBike);
   const maintenanceItems = useQuery(api.maintenance.getMaintenanceItems);
+  const [logTarget, setLogTarget] = useState<{
+    itemId: Id<"maintenanceItems">;
+    mode: "service" | "history";
+  } | null>(null);
   const permission = useSyncExternalStore(
     subscribeToPermission,
     () => getNotificationPermission(),
     () => "unsupported" as const
   );
   const notifiedRef = useRef(false);
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const evaluations = useMemo(
+    () => bike && maintenanceItems
+      ? evaluateMaintenanceItems(maintenanceItems, bike.currentOdometer, now)
+      : [],
+    [bike, maintenanceItems, now]
+  );
+  const summary = summarizeMaintenanceEvaluations(evaluations);
+  const urgentTasks = evaluations.filter((evaluation) =>
+    evaluation.status === "overdue" ||
+    evaluation.status === "due" ||
+    evaluation.status === "upcoming"
+  );
+  const historyNeeded = evaluations.filter((evaluation) => !evaluation.historyComplete);
 
   // Send one batch reminder per session when permission is granted
   useEffect(() => {
     if (!bike || maintenanceItems === undefined || permission !== "granted" || notifiedRef.current) {
       return;
     }
-    const now = Date.now();
-    const statuses = maintenanceItems
-      .filter((item) => item.lastServiceDate && (item.intervalKm || item.intervalMonths))
-      .map((item) =>
-        calculateStatus(
-          bike.currentOdometer,
-          new Date(now),
-          item.lastServiceOdometer ?? 0,
-          new Date(item.lastServiceDate ?? now),
-          item.intervalKm ?? null,
-          item.intervalMonths
-        )
-      );
-    const overdue = statuses.filter((s) => s.status === "overdue").length;
-    const due = statuses.filter((s) => s.status === "due").length;
+    const overdue = evaluations.filter((evaluation) => evaluation.knownStatus === "overdue").length;
+    const due = evaluations.filter((evaluation) => evaluation.knownStatus === "due").length;
     if (overdue + due > 0) {
       notifiedRef.current = true;
       showBatchMaintenanceNotification(overdue, due);
     }
-  }, [bike, maintenanceItems, permission]);
+  }, [bike, maintenanceItems, evaluations, permission]);
 
   const handleEnableNotifications = async () => {
     await requestNotificationPermission();
@@ -89,72 +100,129 @@ export function UpcomingTasksWidget() {
     );
   }
 
-  // eslint-disable-next-line react-hooks/purity -- capture render time; refreshes on every data update
-  const now = Date.now();
-  const upcoming = maintenanceItems
-    ?.filter((item) => item.lastServiceDate && (item.intervalKm || item.intervalMonths))
-    .map((item) => {
-      const status = calculateStatus(
-        bike.currentOdometer,
-        new Date(now),
-        item.lastServiceOdometer ?? 0,
-        new Date(item.lastServiceDate ?? now),
-        item.intervalKm ?? null,
-        item.intervalMonths
-      );
-      return { ...item, status };
-    })
-    .filter((item) => item.status.status !== "upcoming" || (item.status.dueInKm !== null && item.status.dueInKm <= 1000) || (item.status.dueInDays !== null && item.status.dueInDays <= 30))
-    .sort((a, b) => {
-      const priority = { overdue: 0, due: 1, upcoming: 2 };
-      return priority[a.status.status] - priority[b.status.status];
-    })
-    .slice(0, 5);
+  const topTasks = urgentTasks.slice(0, 5);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Wrench className="h-5 w-5 text-primary" />
-          Upcoming Tasks
-          {areNotificationsSupported() && permission === "default" && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="ml-auto h-7 gap-1.5 text-xs"
-              onClick={handleEnableNotifications}
-            >
-              <Bell className="h-3.5 w-3.5" />
-              Enable reminders
-            </Button>
-          )}
-          {areNotificationsSupported() && permission === "denied" && (
-            <BellOff className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {upcoming && upcoming.length > 0 ? (
-          <div className="space-y-3">
-            {upcoming.map((item) => (
-              <div
-                key={item._id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <div className="space-y-1 min-w-0">
-                  <p className="font-medium text-sm">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">{formatDueText(item.status)}</p>
-                </div>
-                <StatusBadge status={item.status.status} />
-              </div>
-            ))}
+    <>
+      <Card>
+        <CardHeader className="gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Wrench className="h-5 w-5 text-primary" aria-hidden="true" />
+              Upcoming Tasks
+            </CardTitle>
+            <div className="flex flex-wrap gap-2">
+              <OdometerEditor
+                currentOdometer={bike.currentOdometer}
+                trigger={
+                  <Button type="button" variant="outline" className="min-h-11 cursor-pointer gap-1.5 px-3 sm:min-h-9">
+                    <Gauge aria-hidden="true" />Update odometer
+                  </Button>
+                }
+              />
+              {areNotificationsSupported() && permission === "default" && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="min-h-11 cursor-pointer gap-1.5 px-3 text-xs sm:min-h-9"
+                  onClick={handleEnableNotifications}
+                >
+                  <Bell aria-hidden="true" className="h-3.5 w-3.5" />
+                  Enable reminders
+                </Button>
+              )}
+              {areNotificationsSupported() && permission === "denied" && (
+                <span className="inline-flex min-h-11 items-center gap-1.5 px-2 text-xs text-muted-foreground sm:min-h-9" title="Browser notifications are disabled">
+                  <BellOff aria-hidden="true" className="h-4 w-4" />Notifications off
+                </span>
+              )}
+              <Button asChild variant="secondary" className="min-h-11 cursor-pointer px-3 sm:min-h-9">
+                <Link href="/maintenance">View all</Link>
+              </Button>
+            </div>
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No upcoming tasks. Your bike is in great shape!
-          </p>
-        )}
-      </CardContent>
-    </Card>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Maintenance summary">
+            <SummaryCount label="Overdue" value={summary.overdue} tone="destructive" />
+            <SummaryCount label="Due soon" value={summary.due} tone="warning" />
+            <SummaryCount label="Upcoming" value={summary.upcoming} tone="success" />
+            <SummaryCount label="Needs history" value={summary.needsHistory} tone="muted" />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {topTasks.length > 0 ? (
+            <div className="space-y-3">
+              {topTasks.map((evaluation) => (
+                <MaintenanceItemRow
+                  key={evaluation.item._id}
+                  evaluation={evaluation}
+                  onLogService={(itemId, mode) => setLogTarget({ itemId, mode })}
+                />
+              ))}
+            </div>
+          ) : summary.needsHistory > 0 ? (
+            <div className="flex flex-col gap-3 border border-warning/40 bg-warning/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="font-medium text-sm">Service history needed</p>
+                <p className="text-xs text-muted-foreground">
+                  Reminders can’t be confirmed for {summary.needsHistory} of {summary.total} items yet.
+                </p>
+              </div>
+              <Button asChild variant="outline" className="min-h-11 cursor-pointer sm:min-h-9">
+                <Link href="/maintenance?filter=needs-history">Review history</Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-1 py-2 text-center" role="status">
+              <p className="text-sm font-medium">No scheduled service due soon.</p>
+              <p className="text-xs text-muted-foreground">
+                All {summary.total} maintenance items have confirmed service history.
+              </p>
+            </div>
+          )}
+
+          {topTasks.length > 0 && historyNeeded.length > 0 && (
+            <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                {historyNeeded.length} item{historyNeeded.length === 1 ? "" : "s"} still need confirmed service history.
+              </p>
+              <Button asChild variant="link" className="min-h-11 cursor-pointer self-start px-0 sm:min-h-9">
+                <Link href="/maintenance?filter=needs-history">Review history</Link>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      {logTarget && <LogModal
+        key={`${logTarget.itemId}-${logTarget.mode}`}
+        type="maintenance"
+        onClose={() => setLogTarget(null)}
+        initialMaintenanceItemId={logTarget.itemId}
+        maintenanceEntryMode={logTarget.mode}
+      />}
+    </>
+  );
+}
+
+function SummaryCount({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "destructive" | "warning" | "success" | "muted";
+}) {
+  const toneClass = {
+    destructive: "text-destructive",
+    warning: "text-warning",
+    success: "text-success",
+    muted: "text-muted-foreground",
+  }[tone];
+
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-2 border border-foreground/10 px-3 py-2">
+      <span className="truncate text-xs text-muted-foreground">{label}</span>
+      <Badge variant="outline" className={`shrink-0 ${toneClass}`}>{value}</Badge>
+    </div>
   );
 }

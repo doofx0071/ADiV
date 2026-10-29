@@ -53,7 +53,7 @@ export default function DashboardPage() {
 
   if (bike === undefined) {
     return (
-      <main className="flex flex-col p-4 md:p-8">
+      <main className="flex flex-col p-3 sm:p-4 md:p-8">
         <div className="mx-auto w-full max-w-6xl space-y-6">
           <Skeleton className="h-10 w-48" />
           <Skeleton className="h-4 w-64" />
@@ -72,7 +72,7 @@ export default function DashboardPage() {
   }
 
   return (
-      <main className="flex flex-col p-4 md:p-8">
+      <main className="flex flex-col p-3 sm:p-4 md:p-8">
       <div className="mx-auto w-full max-w-6xl space-y-8">
         <PageHeader
           title="Dashboard"

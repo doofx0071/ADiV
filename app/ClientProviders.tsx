@@ -22,7 +22,7 @@ export function ClientProviders({ children }: { children: ReactNode }) {
           {/* Bottom padding clears the fixed mobile nav bar */}
           <div
             id="main-content"
-            className="flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0"
+            className="flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] xl:pb-0"
           >
             {children}
           </div>

@@ -13,6 +13,7 @@ import {
 import { ChartEmptyState, ChartSkeletonBody } from "@/components/charts/chart-states";
 import { BarChart } from "@tremor/react";
 import { Wrench } from "lucide-react";
+import { AnalyticsTooltip } from "@/components/charts/analytics-tooltip";
 
 export function MaintenanceFrequencyChart() {
   const maintenanceItems = useQuery(api.maintenance.getMaintenanceItems);
@@ -53,13 +54,15 @@ export function MaintenanceFrequencyChart() {
           <ChartSkeletonBody />
         ) : data.length > 0 ? (
           <BarChart
-            className="h-64"
+            className="h-64 w-full"
             data={data}
             index="category"
             categories={["services"]}
-            colors={["amber"]}
+            colors={["red"]}
             yAxisWidth={40}
             showLegend={false}
+            showAnimation={false}
+            customTooltip={AnalyticsTooltip}
           />
         ) : (
           <ChartEmptyState

@@ -93,7 +93,7 @@ export default function HistoryPage() {
   const visible = filter === "all" ? allActivities : allActivities.filter((a) => a.type === filter);
 
   return (
-    <main className="flex flex-col p-4 md:p-8">
+    <main className="flex flex-col p-3 sm:p-4 md:p-8">
       <div className="mx-auto w-full max-w-3xl space-y-6">
         <PageHeader title="Service History" description="Chronological log of all activities" />
 
@@ -115,7 +115,7 @@ export default function HistoryPage() {
           {visible.length > 0 ? (
             visible.map((activity) => (
               <Card key={activity.id}>
-                <CardContent className="flex items-center gap-4 py-4">
+                <CardContent className="flex flex-wrap items-center gap-3 py-4 sm:flex-nowrap sm:gap-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary">
                     {activity.icon}
                   </div>

@@ -1,17 +1,18 @@
 /**
- * Honda ADV160 — Official Maintenance Schedule (Seed Data)
+ * Legacy starter schedule for the Honda ADV160 app.
  *
- * Sources: Honda ADV160 Owner's Manual, Service Manual
- * Intervals follow the official Honda recommendations.
+ * These seed values were not stored with per-item market, model-year, manual,
+ * or page citations. Treat them as editable starting values and verify them
+ * against the manual for the specific motorcycle before relying on them.
  *
- * intervalKm: kilometer-based interval (undefined = time-only service).
- * intervalMonths: time-based interval (always specified).
+ * intervalKm: kilometer-based interval (undefined = disabled).
+ * intervalMonths: time-based interval (undefined = disabled).
  */
 export interface SeedMaintenanceItem {
   name: string;
   category: string;
   intervalKm?: number;
-  intervalMonths: number;
+  intervalMonths?: number;
   description: string;
   serviceLevel: string;
   notes?: string;

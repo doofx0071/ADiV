@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CalendarDatePicker } from "@/components/ui/calendar-date-picker";
 import {
   Form,
   FormControl,
@@ -202,7 +203,7 @@ export function BikeProfileForm() {
                   <FormItem>
                     <FormLabel>Purchase Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <CalendarDatePicker {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -218,7 +219,7 @@ export function BikeProfileForm() {
                   <FormItem>
                     <FormLabel>Last Service Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <CalendarDatePicker {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

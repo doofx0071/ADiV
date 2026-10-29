@@ -36,7 +36,7 @@ function StatCard({
   return (
     <Card
       className={cn(
-        "group/stat-card relative overflow-hidden",
+        "group/stat-card relative h-full min-h-28 overflow-hidden",
         className
       )}
       {...props}

@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/card";
 import { ChartEmptyState, ChartSkeletonBody } from "@/components/charts/chart-states";
 import { AreaChart } from "@tremor/react";
-import { format, startOfMonth, subMonths } from "date-fns";
+import { format, subMonths } from "date-fns";
 import { Wallet } from "lucide-react";
+import { AnalyticsTooltip } from "@/components/charts/analytics-tooltip";
 
 export function CostChart() {
   const maintenanceLogs = useQuery(api.maintenance.getAllMaintenanceLogs, { limit: 1000 });
@@ -68,7 +69,7 @@ export function CostChart() {
           <ChartSkeletonBody />
         ) : hasData ? (
           <AreaChart
-            className="h-64"
+            className="h-64 w-full"
             data={data}
             index="month"
             categories={["maintenance", "expenses"]}
@@ -76,6 +77,12 @@ export function CostChart() {
             yAxisWidth={60}
             valueFormatter={(value) => `₱${value.toLocaleString()}`}
             showLegend
+            showAnimation={false}
+            showGridLines
+            startEndOnly
+            customTooltip={(props) => (
+              <AnalyticsTooltip {...props} formatValue={(value) => `₱${Number(value).toLocaleString()}`} />
+            )}
           />
         ) : (
           <ChartEmptyState

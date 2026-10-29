@@ -3,6 +3,8 @@
 ## TL;DR
 
 > **Quick Summary**: Build a personal, mobile-responsive web app to track and monitor a Honda ADV160 RoadSync motorcycle. Features maintenance reminders, ride/fuel/expense logging, photo documentation, visual dashboard with charts, dark cyber-moto theme, and gamification (badges, streaks, milestones).
+
+> **Maintenance interval provenance update (2026-10-29):** The current seed values are a legacy hybrid starter schedule. Per-item market, model-year, manual, and page citations were not retained, so do not describe the whole list as verified official Honda guidance. The app now allows intervals to be edited and sources to be recorded; verify values against the manual for the specific motorcycle.
 >
 > **Deliverables**:
 > - Next.js 14 App Router web app with Convex backend
@@ -34,7 +36,7 @@ Build a web app (mobile responsive) to track and monitor a Honda ADV160 RoadSync
 
 **Research Findings**:
 - Official Honda ADV160 specs: 157cc, 16 PS, 8.1L tank, 110/80-14 & 130/70-13 tires, 29/33 psi
-- Official maintenance intervals differ from user's image (6k/12k/18k vs 4k/8k/12k). Using hybrid approach with official intervals for accuracy.
+- The starter list combined values from the user's reference image with additional items. The exact market/year/manual citation for each interval was not retained, so its accuracy was not verified.
 - App inspiration: card-based dashboards, timeline service history, color-coded status (green/yellow/red), quick-log interfaces, photo-heavy records, gamification with XP/badges, dark motorcycle aesthetics
 - Next.js + Convex best practices: `convex/` at project root, `ConvexClientProvider` as client component, parallel `useQuery` for real-time dashboard, 3-step file upload pattern
 
@@ -48,7 +50,7 @@ Build a web app (mobile responsive) to track and monitor a Honda ADV160 RoadSync
 - **Gamification prominence**: Enabled by default, unobtrusive (badges visible, not blocking core flows)
 - **Offline capability**: Online-only (no PWA), designed for quick post-ride logging
 - **Data export**: JSON/CSV export included for backup
-- **Maintenance interval accuracy**: Using official Honda manual intervals for all items
+- **Maintenance interval accuracy**: Keep intervals editable and record the exact source when verified; do not label uncited seed values as official.
 
 ---
 
@@ -77,7 +79,7 @@ Build a personal motorcycle maintenance tracker web app that makes keeping a Hon
 
 ### Must Have
 - Single bike profile with ADV160 specs
-- Maintenance tracking for 25 items with official Honda intervals
+- Maintenance tracking for 25 items with editable starter intervals and optional source citations
 - Ride logging with odometer input and distance calculation
 - Fuel logging with price, liters, odometer, and km/L efficiency
 - Expense tracking with category and notes
@@ -395,7 +397,7 @@ Max Concurrent: 6 (Waves 2 & 3)
 
   **What to do**:
   - Create `convex/seed.ts` with seed function to populate `maintenanceItems` table
-  - Seed 25 items with official Honda ADV160 intervals and specs:
+  - Seed 25 items with editable starter intervals and ADV160 specs; record verified source details per item:
     1. Engine Oil — Replace every 6,000 km / 12 months (0.75L, SAE 10W-30 JASO MB)
     2. Oil Filter — Replace every 6,000 km / 12 months
     3. Air Cleaner Element — Replace every 12,000 km / 12 months (inspect every 6k)
@@ -425,7 +427,7 @@ Max Concurrent: 6 (Waves 2 & 3)
   - Create `convex/seedData.json` with structured data for easy editing
 
   **Must NOT do**:
-  - Do NOT use user's image intervals (4k/8k) — use official Honda intervals for accuracy
+  - Do not choose intervals from a mismatched-market graphic; verify against the manual for the specific motorcycle and record its market/year/page.
   - Do NOT include items beyond the 25 listed
 
   **Recommended Agent Profile**:

@@ -39,7 +39,7 @@ export default function GalleryPage() {
   const isLoading = maintenanceLogs === undefined || (storageIds.length > 0 && fileUrls === undefined);
 
   return (
-    <main className="flex flex-col p-4 md:p-8">
+    <main className="flex flex-col p-3 sm:p-4 md:p-8">
       <div className="mx-auto w-full max-w-6xl space-y-6">
         <PageHeader
           title="Photo Gallery"
@@ -47,18 +47,18 @@ export default function GalleryPage() {
         />
 
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
             {Array.from({ length: 10 }).map((_, i) => (
               <Skeleton key={i} className="aspect-square w-full" />
             ))}
           </div>
         ) : photos.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
             {photos.map((photo) => (
               <button
                 key={photo.id}
                 onClick={() => setSelectedPhoto(photo.url)}
-                className="group relative aspect-square overflow-hidden rounded-none bg-muted ring-1 ring-foreground/10 transition-all hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="group relative aspect-square min-w-0 touch-manipulation overflow-hidden rounded-none bg-muted ring-1 ring-foreground/10 transition-all hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <img
                   src={photo.url}
@@ -68,7 +68,7 @@ export default function GalleryPage() {
                 />
                 {/* Always visible on touch (no hover); revealed on hover/focus on desktop */}
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-100 transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100 md:group-focus-visible:opacity-100">
-                  <p className="text-[10px] text-white font-medium">
+                  <p className="text-xs text-white font-medium sm:text-[10px]">
                     {photo.odometer.toLocaleString()} km
                   </p>
                   <p className="text-[10px] text-white/80">
@@ -92,7 +92,7 @@ export default function GalleryPage() {
       </div>
 
       <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden">
+        <DialogContent className="max-h-[90dvh] max-w-[calc(100vw-1.5rem)] overflow-auto p-0 sm:max-w-3xl">
           <DialogTitle className="sr-only">Photo preview</DialogTitle>
           <DialogDescription className="sr-only">
             Enlarged view of the selected maintenance photo
@@ -101,7 +101,7 @@ export default function GalleryPage() {
             <img
               src={selectedPhoto}
               alt="Maintenance photo"
-              className="w-full h-auto max-h-[80vh] object-contain"
+              className="h-auto max-h-[85dvh] w-full object-contain"
             />
           )}
         </DialogContent>

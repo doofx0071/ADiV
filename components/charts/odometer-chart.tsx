@@ -13,6 +13,7 @@ import {
 import { ChartEmptyState, ChartSkeletonBody } from "@/components/charts/chart-states";
 import { AreaChart } from "@tremor/react";
 import { Gauge } from "lucide-react";
+import { AnalyticsTooltip } from "@/components/charts/analytics-tooltip";
 
 export function OdometerChart() {
   const rides = useQuery(api.rides.getRides, { limit: 100 });
@@ -53,6 +54,8 @@ export function OdometerChart() {
             yAxisWidth={80}
             valueFormatter={(value) => `${value.toLocaleString()} km`}
             showLegend={false}
+            showAnimation={false}
+            customTooltip={AnalyticsTooltip}
           />
         ) : (
           <ChartEmptyState

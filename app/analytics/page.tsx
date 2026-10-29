@@ -57,7 +57,7 @@ export default function AnalyticsPage() {
 
   if (bike === undefined || bike === null) {
     return (
-      <main className="flex flex-col p-4 md:p-8">
+      <main className="flex flex-col p-3 sm:p-4 md:p-8">
         <div className="mx-auto w-full max-w-6xl space-y-6">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-4 w-64" />
@@ -77,7 +77,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <main className="flex flex-col p-4 md:p-8">
+    <main className="flex flex-col p-3 sm:p-4 md:p-8">
       <div className="mx-auto w-full max-w-6xl space-y-8">
         <PageHeader
           title="Analytics"
@@ -85,7 +85,7 @@ export default function AnalyticsPage() {
         />
 
         {/* Key numbers */}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
           {statsLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-28 animate-pulse rounded-lg bg-muted" />

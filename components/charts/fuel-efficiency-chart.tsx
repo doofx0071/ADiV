@@ -13,6 +13,7 @@ import {
 import { ChartEmptyState, ChartSkeletonBody } from "@/components/charts/chart-states";
 import { LineChart } from "@tremor/react";
 import { Fuel } from "lucide-react";
+import { AnalyticsTooltip } from "@/components/charts/analytics-tooltip";
 
 export function FuelEfficiencyChart() {
   const fuelLogs = useQuery(api.fuel.getFuelLogs, { limit: 100 });
@@ -63,6 +64,8 @@ export function FuelEfficiencyChart() {
             yAxisWidth={60}
             valueFormatter={(value) => `${value} km/L`}
             showLegend={false}
+            showAnimation={false}
+            customTooltip={AnalyticsTooltip}
           />
         ) : (
           <ChartEmptyState

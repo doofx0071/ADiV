@@ -10,25 +10,25 @@ export function QuickActions() {
 
   return (
     <>
-      <div className="flex flex-wrap gap-3">
-        <Button onClick={() => setModal("ride")} className="gap-2">
-          <Route className="h-4 w-4" />
+      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:gap-3">
+        <Button onClick={() => setModal("ride")} className="h-11 min-w-0 justify-start gap-2 px-3 sm:h-9 sm:justify-center">
+          <Route className="h-4 w-4 shrink-0" />
           Log Ride
         </Button>
-        <Button onClick={() => setModal("fuel")} variant="secondary" className="gap-2">
-          <Fuel className="h-4 w-4" />
+        <Button onClick={() => setModal("fuel")} variant="secondary" className="h-11 min-w-0 justify-start gap-2 px-3 sm:h-9 sm:justify-center">
+          <Fuel className="h-4 w-4 shrink-0" />
           Log Fuel
         </Button>
-        <Button onClick={() => setModal("maintenance")} variant="outline" className="gap-2">
-          <Wrench className="h-4 w-4" />
+        <Button onClick={() => setModal("maintenance")} variant="outline" className="h-11 min-w-0 justify-start gap-2 px-3 sm:h-9 sm:justify-center">
+          <Wrench className="h-4 w-4 shrink-0" />
           Log Maintenance
         </Button>
-        <Button onClick={() => setModal("expense")} variant="ghost" className="gap-2">
-          <Plus className="h-4 w-4" />
+        <Button onClick={() => setModal("expense")} variant="ghost" className="h-11 min-w-0 justify-start gap-2 px-3 sm:h-9 sm:justify-center">
+          <Plus className="h-4 w-4 shrink-0" />
           Add Expense
         </Button>
       </div>
-      <LogModal type={modal} onClose={() => setModal(null)} />
+      <LogModal key={modal ?? "closed"} type={modal} onClose={() => setModal(null)} />
     </>
   );
 }

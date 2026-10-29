@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateProgress,
   calculateStatus,
+  evaluateMaintenanceItem,
+  evaluateMaintenanceItems,
   formatDueText,
   getDueDate,
   getDueOdometer,
@@ -171,40 +173,182 @@ describe('calculateStatus', () => {
 });
 
 describe('formatDueText', () => {
-  it('prefers km overdue over a future time interval', () => {
+  it('shows both distance and time when both are available', () => {
     expect(
-      formatDueText({ status: 'overdue', dueInKm: -200, dueInDays: 10, progressPercent: 100 })
-    ).toBe('Overdue by 200 km');
+      formatDueText({ dueInKm: -200, dueInDays: 10 })
+    ).toBe('Overdue by 200 km · Due in 10 days');
   });
 
-  it('shows time overdue when km side is fine', () => {
+  it('keeps a known overdue dimension visible beside a future dimension', () => {
     expect(
-      formatDueText({ status: 'overdue', dueInKm: 800, dueInDays: -3, progressPercent: 40 })
-    ).toBe('Overdue by 3 days');
+      formatDueText({ dueInKm: 800, dueInDays: -3 })
+    ).toBe('Due in 800 km · Overdue by 3 days');
   });
 
-  it('shows whichever comes first when both are tracked', () => {
+  it('never compares kilometers directly with days', () => {
     expect(
-      formatDueText({ status: 'upcoming', dueInKm: 2000, dueInDays: 10, progressPercent: 10 })
-    ).toBe('Due in 10 days');
-    // Smaller-number heuristic: 30 reads sooner than 500
+      formatDueText({ dueInKm: 2000, dueInDays: 10 })
+    ).toBe('Due in 2,000 km · Due in 10 days');
     expect(
-      formatDueText({ status: 'upcoming', dueInKm: 500, dueInDays: 30, progressPercent: 90 })
-    ).toBe('Due in 30 days');
+      formatDueText({ dueInKm: 500, dueInDays: 30 })
+    ).toBe('Due in 500 km · Due in 30 days');
   });
 
   it('handles single-interval tasks', () => {
     expect(
-      formatDueText({ status: 'due', dueInKm: null, dueInDays: 5, progressPercent: 0 })
+      formatDueText({ dueInKm: null, dueInDays: 5 })
     ).toBe('Due in 5 days');
     expect(
-      formatDueText({ status: 'due', dueInKm: 300, dueInDays: null, progressPercent: 95 })
+      formatDueText({ dueInKm: 300, dueInDays: null })
     ).toBe('Due in 300 km');
   });
 
   it('handles no intervals', () => {
     expect(
-      formatDueText({ status: 'upcoming', dueInKm: null, dueInDays: null, progressPercent: 0 })
+      formatDueText({ dueInKm: null, dueInDays: null })
     ).toBe('No interval set');
+  });
+});
+
+describe('evaluateMaintenanceItem', () => {
+  const currentDate = new Date('2025-01-01T12:00:00.000Z');
+
+  it('marks a seeded item with no service baseline as needing history', () => {
+    const result = evaluateMaintenanceItem(
+      { name: 'Engine oil', intervalKm: 6000, intervalMonths: 12 },
+      4162,
+      currentDate
+    );
+
+    expect(result.status).toBe('needs-history');
+    expect(result.historyComplete).toBe(false);
+    expect(result.missingBaseline).toEqual(['service-date', 'service-odometer']);
+    expect(result.dueInKm).toBeNull();
+    expect(result.dueInDays).toBeNull();
+  });
+
+  it('calculates the known time dimension but keeps partial history incomplete', () => {
+    const result = evaluateMaintenanceItem(
+      {
+        name: 'Engine oil',
+        intervalKm: 6000,
+        intervalMonths: 12,
+        lastServiceDate: new Date('2024-01-26T12:00:00.000Z').getTime(),
+      },
+      4162,
+      currentDate
+    );
+
+    expect(result.status).toBe('upcoming');
+    expect(result.historyComplete).toBe(false);
+    expect(result.missingBaseline).toEqual(['service-odometer']);
+    expect(result.dueInKm).toBeNull();
+    expect(result.dueInDays).not.toBeNull();
+  });
+
+  it('keeps a confirmed overdue dimension visible when another baseline is missing', () => {
+    const result = evaluateMaintenanceItem(
+      {
+        name: 'Engine oil',
+        intervalKm: 6000,
+        intervalMonths: 12,
+        lastServiceOdometer: 0,
+      },
+      6500,
+      currentDate
+    );
+
+    expect(result.status).toBe('overdue');
+    expect(result.historyComplete).toBe(false);
+    expect(result.missingBaseline).toEqual(['service-date']);
+    expect(result.dueInKm).toBe(-500);
+  });
+
+  it('requires only the baseline for a time-only interval', () => {
+    const result = evaluateMaintenanceItem(
+      {
+        name: 'Coolant',
+        intervalKm: null,
+        intervalMonths: 36,
+        lastServiceDate: new Date('2024-03-01T12:00:00.000Z').getTime(),
+      },
+      4162,
+      currentDate
+    );
+
+    expect(result.historyComplete).toBe(true);
+    expect(result.dueAtOdometer).toBeNull();
+    expect(result.dueInDays).not.toBeNull();
+  });
+
+  it('returns clear only when all required baselines are present and outside alert windows', () => {
+    const result = evaluateMaintenanceItem(
+      {
+        name: 'Engine oil',
+        intervalKm: 6000,
+        intervalMonths: 12,
+        lastServiceDate: new Date('2024-03-01T12:00:00.000Z').getTime(),
+        lastServiceOdometer: 0,
+      },
+      1000,
+      currentDate
+    );
+
+    expect(result.status).toBe('clear');
+    expect(result.historyComplete).toBe(true);
+    expect(result.dueAtOdometer).toBe(6000);
+    expect(result.dueAtDate).toEqual(new Date('2025-03-01T12:00:00.000Z'));
+  });
+
+  it('preserves the distance reminder boundaries', () => {
+    const item = {
+      name: 'Engine oil',
+      intervalKm: 6000,
+      intervalMonths: null,
+      lastServiceOdometer: 0,
+    };
+    const statusAt = (currentOdometer: number) =>
+      evaluateMaintenanceItem(item, currentOdometer, currentDate).status;
+
+    expect(statusAt(6001)).toBe('overdue');
+    expect(statusAt(5500)).toBe('due');
+    expect(statusAt(5000)).toBe('upcoming');
+    expect(statusAt(4999)).toBe('clear');
+  });
+
+  it('preserves the time reminder boundaries', () => {
+    const item = {
+      name: 'Coolant',
+      intervalKm: null,
+      intervalMonths: 12,
+      lastServiceDate: new Date('2024-01-01T12:00:00.000Z').getTime(),
+    };
+    const statusAt = (date: string) =>
+      evaluateMaintenanceItem(item, 4162, new Date(date)).status;
+
+    expect(statusAt('2025-01-02T12:00:00.000Z')).toBe('overdue');
+    expect(statusAt('2024-12-25T12:00:00.000Z')).toBe('due');
+    expect(statusAt('2024-12-02T12:00:00.000Z')).toBe('upcoming');
+    expect(statusAt('2024-12-01T12:00:00.000Z')).toBe('clear');
+  });
+
+  it('orders due and overdue items before history-needed and clear items', () => {
+    const results = evaluateMaintenanceItems(
+      [
+        { name: 'Clear', intervalKm: 6000, intervalMonths: 12, lastServiceDate: new Date('2024-06-01T12:00:00.000Z').getTime(), lastServiceOdometer: 2000 },
+        { name: 'Unknown', intervalKm: 6000, intervalMonths: 12 },
+        { name: 'Overdue', intervalKm: 6000, intervalMonths: 12, lastServiceDate: new Date('2023-12-30T12:00:00.000Z').getTime(), lastServiceOdometer: 0 },
+        { name: 'Due', intervalKm: 6000, intervalMonths: 12, lastServiceDate: new Date('2024-01-08T12:00:00.000Z').getTime(), lastServiceOdometer: 2000 },
+      ],
+      6500,
+      currentDate
+    );
+
+    expect(results.map((result) => result.item.name)).toEqual([
+      'Overdue',
+      'Due',
+      'Unknown',
+      'Clear',
+    ]);
   });
 });

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/layout/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { calculateStatus, formatDueText } from "@/lib/reminders";
+import { evaluateMaintenanceItem, formatDueText } from "@/lib/reminders";
 import {
   Wrench,
   ArrowLeft,
@@ -36,15 +36,8 @@ export default function MaintenanceDetailPage() {
   }, [maintenanceItems, itemId]);
 
   const status = useMemo(() => {
-    if (!bike || !item || item.lastServiceDate === undefined || item.lastServiceOdometer === undefined) return null;
-    return calculateStatus(
-      bike.currentOdometer,
-      new Date(),
-      item.lastServiceOdometer,
-      new Date(item.lastServiceDate),
-      item.intervalKm ?? null,
-      item.intervalMonths
-    );
+    if (!bike || !item) return null;
+    return evaluateMaintenanceItem(item, bike.currentOdometer, new Date());
   }, [bike, item]);
 
   const stats = useMemo(() => {
@@ -69,7 +62,7 @@ export default function MaintenanceDetailPage() {
 
   if (isLoading) {
     return (
-      <main className="flex flex-col p-4 md:p-8">
+      <main className="flex flex-col p-3 sm:p-4 md:p-8">
         <div className="mx-auto w-full max-w-3xl space-y-6">
           <Skeleton className="h-10 w-48" />
           <Skeleton className="h-4 w-64" />
@@ -86,7 +79,7 @@ export default function MaintenanceDetailPage() {
 
   if (!item) {
     return (
-      <main className="flex flex-col p-4 md:p-8">
+      <main className="flex flex-col p-3 sm:p-4 md:p-8">
         <div className="mx-auto w-full max-w-3xl">
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -108,7 +101,7 @@ export default function MaintenanceDetailPage() {
   }
 
   return (
-    <main className="flex flex-col p-4 md:p-8">
+    <main className="flex flex-col p-3 sm:p-4 md:p-8">
       <div className="mx-auto w-full max-w-3xl space-y-6">
         <PageHeader
           title={item.name}
@@ -131,14 +124,40 @@ export default function MaintenanceDetailPage() {
             </CardHeader>
             <CardContent>
               {status ? (
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={status.status} />
-                  <span className="text-sm text-muted-foreground">
-                    {formatDueText(status)}
-                  </span>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {status.status === "needs-history" ? (
+                      <Badge variant="outline" className="border-warning/50 text-warning-foreground">Needs history</Badge>
+                    ) : status.status === "clear" ? (
+                      <Badge variant="secondary">On track</Badge>
+                    ) : (
+                      <StatusBadge status={status.status} />
+                    )}
+                    {!status.historyComplete && status.status !== "needs-history" && (
+                      <Badge variant="outline" className="border-warning/50 text-warning-foreground">Needs history</Badge>
+                    )}
+                  </div>
+                  {(status.dueInKm !== null || status.dueInDays !== null) && (
+                    <p className="text-sm text-muted-foreground">{formatDueText(status)}</p>
+                  )}
+                  {!status.historyComplete && (
+                    <p className="text-xs text-muted-foreground">
+                      Missing confirmed {status.missingBaseline.map((field) =>
+                        field === "service-date" ? "service date" : "service odometer"
+                      ).join(" and ")}.
+                    </p>
+                  )}
+                  {status.dueAtOdometer !== null && (
+                    <p className="text-xs text-muted-foreground">Next distance service at {status.dueAtOdometer.toLocaleString()} km</p>
+                  )}
+                  {status.dueAtDate && (
+                    <p className="text-xs text-muted-foreground">
+                      Next time service by {status.dueAtDate.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                    </p>
+                  )}
                 </div>
               ) : (
-                <span className="text-sm text-muted-foreground">No service history</span>
+                <span className="text-sm text-muted-foreground">Service baseline is not available.</span>
               )}
             </CardContent>
           </Card>
@@ -163,7 +182,17 @@ export default function MaintenanceDetailPage() {
                     {item.intervalMonths} months
                   </Badge>
                 )}
+                {!item.intervalKm && !item.intervalMonths && (
+                  <span className="text-xs text-muted-foreground">No reminder interval configured</span>
+                )}
               </div>
+              {item.intervalSource ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground/80">Interval source:</span> {item.intervalSource}
+                </p>
+              ) : (
+                <p className="mt-3 text-xs text-muted-foreground">Interval source has not been recorded.</p>
+              )}
             </CardContent>
           </Card>
         </div>
