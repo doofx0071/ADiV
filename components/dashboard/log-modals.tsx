@@ -88,6 +88,7 @@ export function LogModal({
   // Expense form
   const [expForm, setExpForm] = useState({ category: "", amount: "", description: "" });
   const [expDate, setExpDate] = useState(today);
+  const [expReceipt, setExpReceipt] = useState<PendingPhoto | null>(null);
   const addExpense = useMutation(api.expenses.addExpense);
 
   const toDateMs = (dateStr: string) => parse(dateStr, "yyyy-MM-dd", new Date()).getTime();
@@ -131,6 +132,32 @@ export function LogModal({
 
   const removePhoto = (storageId: string) => {
     setMaintPhotos((prev) => prev.filter((p) => p.storageId !== storageId));
+  };
+
+  const handleReceiptSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > MAX_PHOTO_BYTES) {
+      toast.error(`${file.name} exceeds the 5MB limit`);
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const res = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!res.ok) throw new Error(`Upload failed for ${file.name}`);
+      const { storageId } = await res.json();
+      setExpReceipt({ file, storageId: storageId as Id<"_storage"> });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Receipt upload failed");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -195,14 +222,27 @@ export function LogModal({
         toast.success("Maintenance logged!");
       } else if (type === "expense") {
         if (!expForm.category) { toast.error("Select a category"); return; }
-        await addExpense({
+        const expenseId = await addExpense({
           category: expForm.category,
           amount: Number(expForm.amount),
           date: toDateMs(expDate),
           description: expForm.description || undefined,
+          receiptPhoto: expReceipt?.storageId,
         });
+        // Attach receipt metadata now that we have an expense id to reference
+        if (expReceipt) {
+          await registerFile({
+            storageId: expReceipt.storageId,
+            name: expReceipt.file.name,
+            type: expReceipt.file.type,
+            size: expReceipt.file.size,
+            recordType: "expense",
+            recordId: expenseId,
+          });
+        }
         setExpForm({ category: "", amount: "", description: "" });
         setExpDate(today);
+        setExpReceipt(null);
         toast.success("Expense added!");
       }
       onClose();
@@ -440,6 +480,36 @@ export function LogModal({
                 <Label htmlFor="exp-description">Description</Label>
                 <Textarea id="exp-description" name="description" value={expForm.description} placeholder="What was this for?"
                   onChange={(e) => setExpForm({ ...expForm, description: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="exp-receipt">Receipt (optional)</Label>
+                <input
+                  id="exp-receipt"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleReceiptSelect}
+                  disabled={isUploading || !!expReceipt}
+                  className="block min-h-11 w-full cursor-pointer text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
+                />
+                {expReceipt && (
+                  <ul className="space-y-1.5">
+                    <li className="flex items-center justify-between rounded-md border px-3 py-1.5 text-sm">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <Camera className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        <span className="truncate">{expReceipt.file.name}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setExpReceipt(null)}
+                        aria-label={`Remove ${expReceipt.file.name}`}
+                        className="min-h-11 min-w-11 shrink-0 cursor-pointer rounded p-1 hover:bg-muted"
+                      >
+                        <X className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </li>
+                  </ul>
+                )}
+                {isUploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
               </div>
             </>
           )}

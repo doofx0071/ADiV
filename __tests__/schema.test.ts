@@ -96,7 +96,7 @@ describe("convex/schema.ts", () => {
     expect(fields).toContain("name: v.string()");
     expect(fields).toContain("category: v.string()");
     expect(fields).toContain("intervalKm: v.optional(v.number())");
-    expect(fields).toContain("intervalMonths: v.number()");
+    expect(fields).toContain("intervalMonths: v.optional(v.number())");
     expect(fields).toContain("description: v.optional(v.string())");
     expect(fields).toContain("serviceLevel: v.optional(v.string())");
     expect(fields).toContain("notes: v.optional(v.string())");
@@ -157,7 +157,7 @@ describe("convex/schema.ts", () => {
     expect(fields).toContain("amount: v.number()");
     expect(fields).toContain("date: v.number()");
     expect(fields).toContain("description: v.optional(v.string())");
-    expect(fields).toContain("receiptPhoto: v.optional(v.string())");
+    expect(fields).toContain("receiptPhoto: v.optional(v.id(\"_storage\"))");
   });
 
   // ── Files Fields ─────────────────────────────────────────────────

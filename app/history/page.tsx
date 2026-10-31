@@ -86,6 +86,7 @@ export default function HistoryPage() {
         category: expense.category,
         amount: expense.amount,
         description: expense.description,
+        receiptPhoto: expense.receiptPhoto,
       },
     })) ?? []),
   ].sort((a, b) => b.date - a.date);

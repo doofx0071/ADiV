@@ -47,6 +47,35 @@ export const getFilesByRecord = query({
 });
 
 /**
+ * Query all files of a given record type (e.g. every "expense" receipt).
+ */
+export const getFilesByRecordType = query({
+  args: {
+    recordType: v.string(),
+  },
+  returns: v.array(
+    v.object({
+      _id: v.id("files"),
+      _creationTime: v.number(),
+      storageId: v.id("_storage"),
+      name: v.string(),
+      type: v.string(),
+      size: v.number(),
+      recordType: v.string(),
+      recordId: v.string(),
+      createdAt: v.number(),
+    })
+  ),
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("files")
+      .withIndex("by_record", (q) => q.eq("recordType", args.recordType))
+      .order("desc")
+      .collect();
+  },
+});
+
+/**
  * Register a file after upload to Convex storage.
  */
 export const registerFile = mutation({

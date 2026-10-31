@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
@@ -23,19 +23,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Receipt, Trash2 } from "lucide-react";
 
 const EXPENSE_CATEGORIES = [
   "Parts", "Accessories", "Insurance", "Parking",
   "Tolls", "Cleaning", "Tools", "Other",
 ];
 
+const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
+
 /** A history entry with only the fields its backend mutation can edit. */
 export type HistoryLog =
   | { type: "maintenance"; id: Id<"maintenanceLogs">; cost?: number; notes?: string }
   | { type: "ride"; id: Id<"rides">; notes?: string }
   | { type: "fuel"; id: Id<"fuelLogs">; stationName?: string; notes?: string }
-  | { type: "expense"; id: Id<"expenses">; category: string; amount: number; description?: string };
+  | {
+      type: "expense";
+      id: Id<"expenses">;
+      category: string;
+      amount: number;
+      description?: string;
+      receiptPhoto?: Id<"_storage">;
+    };
 
 interface Props {
   log: HistoryLog;
@@ -44,8 +53,10 @@ interface Props {
 export function LogActions({ log }: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isReceiptBusy, setIsReceiptBusy] = useState(false);
 
   const updateMaintenanceLog = useMutation(api.maintenance.updateMaintenanceLog);
   const deleteMaintenanceLog = useMutation(api.maintenance.deleteMaintenanceLog);
@@ -55,6 +66,15 @@ export function LogActions({ log }: Props) {
   const deleteFuelLog = useMutation(api.fuel.deleteFuelLog);
   const updateExpense = useMutation(api.expenses.updateExpense);
   const deleteExpense = useMutation(api.expenses.deleteExpense);
+  const attachExpenseReceipt = useMutation(api.expenses.attachExpenseReceipt);
+  const removeExpenseReceipt = useMutation(api.expenses.removeExpenseReceipt);
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+
+  const receiptPhoto = log.type === "expense" ? log.receiptPhoto : undefined;
+  const receiptUrl = useQuery(
+    api.files.getFileUrl,
+    receiptPhoto ? { storageId: receiptPhoto } : "skip"
+  );
 
   const [cost, setCost] = useState(log.type === "maintenance" ? String(log.cost ?? "") : "");
   const [notes, setNotes] = useState(log.type === "maintenance" || log.type === "ride" || log.type === "fuel" ? (log.notes ?? "") : "");
@@ -115,8 +135,66 @@ export function LogActions({ log }: Props) {
     }
   };
 
+  const handleReceiptChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (log.type !== "expense") return;
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > MAX_RECEIPT_BYTES) {
+      toast.error(`${file.name} exceeds the 5MB limit`);
+      return;
+    }
+    setIsReceiptBusy(true);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const res = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!res.ok) throw new Error(`Upload failed for ${file.name}`);
+      const { storageId } = await res.json();
+      await attachExpenseReceipt({
+        expenseId: log.id,
+        storageId,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      });
+      toast.success("Receipt attached");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Receipt upload failed");
+    } finally {
+      setIsReceiptBusy(false);
+    }
+  };
+
+  const handleReceiptRemove = async () => {
+    if (log.type !== "expense") return;
+    setIsReceiptBusy(true);
+    try {
+      await removeExpenseReceipt({ expenseId: log.id });
+      toast.success("Receipt removed");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to remove receipt");
+    } finally {
+      setIsReceiptBusy(false);
+    }
+  };
+
   return (
     <div className="flex shrink-0 items-center gap-1">
+      {log.type === "expense" && receiptPhoto && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          aria-label={`View receipt for ${typeLabel}`}
+          onClick={() => setViewerOpen(true)}
+        >
+          <Receipt className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      )}
       <Button
         variant="ghost"
         size="icon"
@@ -204,6 +282,47 @@ export function LogActions({ log }: Props) {
                   <Textarea id="edit-description" value={description}
                     onChange={(e) => setDescription(e.target.value)} />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-receipt">Receipt</Label>
+                  {receiptPhoto ? (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-h-11 cursor-pointer"
+                        onClick={() => setViewerOpen(true)}
+                      >
+                        <Receipt className="h-4 w-4" aria-hidden="true" />
+                        View current
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-h-11 cursor-pointer text-destructive hover:text-destructive"
+                        disabled={isReceiptBusy}
+                        onClick={handleReceiptRemove}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ) : null}
+                  <input
+                    id="edit-receipt"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleReceiptChange}
+                    disabled={isReceiptBusy}
+                    className="block min-h-11 w-full cursor-pointer text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {receiptPhoto
+                      ? "Attaching a new image replaces the current receipt."
+                      : "Attach an image of the receipt (max 5MB). Changes apply immediately."}
+                  </p>
+                  {isReceiptBusy && <p className="text-xs text-muted-foreground">Working…</p>}
+                </div>
               </>
             )}
             <div className="flex gap-3">
@@ -223,7 +342,8 @@ export function LogActions({ log }: Props) {
             <DialogTitle>Delete entry?</DialogTitle>
             <DialogDescription>
               This permanently removes the {typeLabel}
-              {log.type === "maintenance" && " and its attached photos"}. This cannot be undone.
+              {log.type === "maintenance" && " and its attached photos"}
+              {log.type === "expense" && " and its receipt"}. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 pt-2">
@@ -232,6 +352,25 @@ export function LogActions({ log }: Props) {
             </Button>
             <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt viewer */}
+      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
+        <DialogContent className="max-h-[90dvh] max-w-[calc(100vw-1.5rem)] overflow-auto p-0 sm:max-w-3xl">
+          <DialogTitle className="sr-only">Receipt preview</DialogTitle>
+          <DialogDescription className="sr-only">
+            Enlarged view of the expense receipt
+          </DialogDescription>
+          {receiptUrl ? (
+            <img
+              src={receiptUrl}
+              alt="Expense receipt"
+              className="h-auto max-h-[85dvh] w-full object-contain"
+            />
+          ) : (
+            <p className="p-6 text-sm text-muted-foreground">Receipt image is unavailable.</p>
+          )}
         </DialogContent>
       </Dialog>
     </div>

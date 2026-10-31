@@ -105,7 +105,7 @@ export default defineSchema({
     amount: v.number(),
     date: v.number(),
     description: v.optional(v.string()),
-    receiptPhoto: v.optional(v.string()),
+    receiptPhoto: v.optional(v.id("_storage")),
   }).index("by_date", ["date"]),
 
   // ── Uploaded Files ────────────────────────────────────────────────
