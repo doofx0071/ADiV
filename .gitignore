@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+/backups/
 
 # next.js
 /.next/
@@ -56,3 +59,6 @@ out/
 .playwright-mcp/
 nav-snapshot.md
 nav-header-check.png
+
+# ZCode local state
+.zcode/

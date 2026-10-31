@@ -29,15 +29,35 @@ Package manager is **bun** (bun.lock). Run via `bun run <script>`:
 - `dev` — Next dev server (localhost:3000)
 - `build` / `start` / `lint` (eslint)
 - `test` — Vitest run; `test:watch` for watch mode
-- `test:e2e` — Playwright (config exists, but the `e2e/` test dir does not yet)
+- `test:e2e` — Playwright (`e2e/` suites; see "E2E testing" below)
 - Typecheck: no script — use `bunx tsc --noEmit`
 - Convex backend sync: `npx convex dev`
+
+## E2E testing
+
+Playwright runs the app on **port 3100** against a **dedicated e2e Convex
+deployment** — never against a dev server on :3000 (write tests log rides/fuel
+that sync the bike odometer upward and would pollute real data; :3100 also
+guarantees an already-running dev server is never reused).
+
+One-time setup:
+1. Back up `.env.local`, run `npx convex dev`, choose "create a new project"
+   (e.g. `adiv-e2e`) and let it push functions; copy the printed dev URL.
+2. Restore `.env.local`, then put the e2e URL into a git-ignored `.env.e2e`:
+   `NEXT_PUBLIC_CONVEX_URL=https://<e2e-deployment>.convex.cloud`
+3. `bun run test:e2e`
+
+The e2e backend starts empty; the onboarding test (and `ensureSetup` in
+`e2e/helpers.ts`) creates the bike + seeds the schedule idempotently, and all
+write tests read the current odometer first so they stay repeatable on a
+persistent backend. Tests are serial (workers: 1) because they share that
+backend state.
 
 ## Layout
 
 - `app/` — App Router pages: dashboard, analytics, history, achievements, gallery, export, setup, `maintenance/[id]`. `ClientProviders` wraps the app (Convex + theme).
 - `convex/` — `schema.ts` plus one module per domain (bike, rides, fuel, expenses, maintenance, achievements, files, seed). `convex/_generated/` is auto-generated — never edit.
-- `components/` — `ui/` (shadcn), `layout/`, `dashboard/`, `charts/` (Tremor), `setup/`.
+- `components/` — `ui/` (shadcn), `layout/`, `dashboard/`, `charts/` (Tremor), `history/`, `maintenance/`, `setup/`.
 - `lib/` — theme system, reminders engine, achievements logic, utils.
 - `__tests__/` — Vitest unit tests (jsdom); only `__tests__/**` is matched by the config.
 
