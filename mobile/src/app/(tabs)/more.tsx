@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router } from "expo-router";
-import { ChevronRight, Download, Images, Medal, Moon, Route, Sun, Wrench } from "lucide-react-native";
+import { ChevronRight, Download, Images, Medal, Moon, Route, Sun, Wallet, Wrench } from "lucide-react-native";
 import { useAppTheme, type ThemeMode } from "@/lib/theme";
 import { AppButton, Card, ChoiceRow, Page } from "@/components/ui";
 import { TimeField } from "@/components/date-field";
@@ -83,6 +83,8 @@ export default function MoreScreen() {
 
       <Card>
         <MenuLink icon={<Route size={19} color={colors.primary} />} title="Rides" detail="Review, edit, and remove ride logs" onPress={() => router.push("/rides")} />
+        <View style={{ height: 1, backgroundColor: colors.border }} />
+        <MenuLink icon={<Wallet size={19} color={colors.primary} />} title="Expenses" detail="Parts, accessories, and other costs" onPress={() => router.push("/expenses")} />
         <View style={{ height: 1, backgroundColor: colors.border }} />
         <MenuLink icon={<Wrench size={19} color={colors.primary} />} title="Maintenance schedule" detail="Edit intervals, sources, and service details" onPress={() => router.push("/(tabs)/maintenance")} />
         <View style={{ height: 1, backgroundColor: colors.border }} />

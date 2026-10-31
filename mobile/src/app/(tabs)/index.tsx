@@ -143,7 +143,7 @@ export default function DashboardScreen() {
         onRequestClose={() => { if (!savingOdo) setOdometerModalVisible(false); }}
       >
         <KeyboardAvoidingView
-          style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0, 0, 0, 0.55)" }}
+          style={{ flex: 1, justifyContent: "flex-end" }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <Pressable
