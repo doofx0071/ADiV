@@ -16,8 +16,8 @@ const VALID_CATEGORIES = [
 const VALID_SERVICE_LEVELS = ["owner", "dealer"] as const;
 
 describe("seedData", () => {
-  it("exports exactly 25 maintenance items", () => {
-    expect(SEED_MAINTENANCE_ITEMS.length).toBe(25);
+  it("exports exactly 26 maintenance items", () => {
+    expect(SEED_MAINTENANCE_ITEMS.length).toBe(26);
   });
 
   it("all items have a non-empty name", () => {
@@ -61,6 +61,13 @@ describe("seedData", () => {
     }
   });
 
+  it("all items have a non-empty intervalSource citation", () => {
+    for (const item of SEED_MAINTENANCE_ITEMS) {
+      expect(item.intervalSource).toBeDefined();
+      expect(item.intervalSource.trim().length).toBeGreaterThan(0);
+    }
+  });
+
   it("all item names are unique", () => {
     const names = SEED_MAINTENANCE_ITEMS.map((i) => i.name);
     const uniqueNames = new Set(names);
@@ -82,6 +89,7 @@ describe("seedData", () => {
       "Final Drive Oil",
       "Clutch Shoes Wear",
       "Brake System",
+      "Brake Fluid",
       "Tires",
       "Battery",
       "Lights, Signals & Horn",
@@ -137,10 +145,28 @@ describe("seedData - official Honda intervals", () => {
     expect(item.intervalMonths).toBe(24);
   });
 
-  it("Steering Head Bearings has 24000 km / 24 month interval", () => {
+  it("Steering Head Bearings has 12000 km / 12 month interval (per Owner's Manual p.83)", () => {
     const item = byName("Steering Head Bearings");
-    expect(item.intervalKm).toBe(24000);
+    expect(item.intervalKm).toBe(12000);
+    expect(item.intervalMonths).toBe(12);
+  });
+
+  it("Brake Fluid has no km interval and 24 month interval (replace every 2 years)", () => {
+    const item = byName("Brake Fluid");
+    expect(item.intervalKm).toBeUndefined();
     expect(item.intervalMonths).toBe(24);
+  });
+
+  it("Lights, Signals & Horn has 12000 km / 12 month interval (per Owner's Manual p.83)", () => {
+    const item = byName("Lights, Signals & Horn");
+    expect(item.intervalKm).toBe(12000);
+    expect(item.intervalMonths).toBe(12);
+  });
+
+  it("Cooling System has 12000 km / 12 month interval (per Owner's Manual p.82)", () => {
+    const item = byName("Cooling System");
+    expect(item.intervalKm).toBe(12000);
+    expect(item.intervalMonths).toBe(12);
   });
 
   it("Battery has 6000 km / 12 month interval", () => {
@@ -179,10 +205,10 @@ describe("seedData - category distribution", () => {
     expect(count).toBe(4);
   });
 
-  it("each of brakes, tires has 1 item", () => {
+  it("each of tires has 1 item and brakes has 2 items", () => {
     expect(
       SEED_MAINTENANCE_ITEMS.filter((i) => i.category === "brakes").length,
-    ).toBe(1);
+    ).toBe(2);
     expect(
       SEED_MAINTENANCE_ITEMS.filter((i) => i.category === "tires").length,
     ).toBe(1);

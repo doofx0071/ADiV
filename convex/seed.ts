@@ -1,7 +1,7 @@
 /**
- * Seed mutation — populates maintenanceItems with the app's legacy starter
- * schedule. The seed values are editable and do not include per-item source
- * citations.
+ * Seed mutation — populates maintenanceItems with the app's starter schedule
+ * (intervals verified against the scanned ADV160 Owner's Manual pp. 82-83;
+ * each item carries an intervalSource citation, see docs/maintenance-intervals.md).
  *
  * IDEMPOTENT: If any maintenance items already exist, the mutation skips
  * seeding. Running it multiple times will not duplicate data.
@@ -43,6 +43,7 @@ export const seed = mutation({
         category: item.category,
         intervalKm: item.intervalKm,
         intervalMonths: item.intervalMonths,
+        intervalSource: item.intervalSource,
         description: item.description,
         serviceLevel: item.serviceLevel,
         notes: item.notes,

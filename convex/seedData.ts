@@ -1,9 +1,11 @@
 /**
- * Legacy starter schedule for the Honda ADV160 app.
+ * Starter schedule for the Honda ADV160 app.
  *
- * These seed values were not stored with per-item market, model-year, manual,
- * or page citations. Treat them as editable starting values and verify them
- * against the manual for the specific motorcycle before relying on them.
+ * Interval values were verified against the scanned Owner's Manual maintenance
+ * schedule (pp. 82-83) on 2026-10-31; each item carries an `intervalSource`
+ * citation. Items marked "Unofficial" are not listed in the manual schedule
+ * and come from secondary sources (Honda ADV guide infographic / PH owner
+ * practice) - treat those as editable starting values.
  *
  * intervalKm: kilometer-based interval (undefined = disabled).
  * intervalMonths: time-based interval (undefined = disabled).
@@ -13,6 +15,7 @@ export interface SeedMaintenanceItem {
   category: string;
   intervalKm?: number;
   intervalMonths?: number;
+  intervalSource: string;
   description: string;
   serviceLevel: string;
   notes?: string;
@@ -25,7 +28,10 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "engine",
     intervalKm: 6000,
     intervalMonths: 12,
-    description: "Drain and replace engine oil with recommended grade.",
+    intervalSource:
+      "Honda ADV160 Owner's Manual pp.82-83 (R at 1,000 km, then R every 6,000 km + annual)",
+    description:
+      "Drain and replace engine oil with recommended grade. Initial change at 1,000 km.",
     serviceLevel: "dealer",
     notes: "Use Honda GN4 10W-30 or equivalent JASO MA2. Capacity: ~0.9L with filter change.",
   },
@@ -34,6 +40,8 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "engine",
     intervalKm: 6000,
     intervalMonths: 12,
+    intervalSource:
+      "Unofficial: Honda ADV maintenance guide infographic; not listed in Owner's Manual schedule",
     description: "Replace oil filter cartridge.",
     serviceLevel: "dealer",
     notes: "Replace every other oil change if using high-quality filter. Always replace with oil change.",
@@ -43,15 +51,19 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "engine",
     intervalKm: 12000,
     intervalMonths: 12,
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.82 (I/R alternating every 6,000 km from 12,000 km; replace cadence 12,000 km)",
     description: "Replace spark plug and check gap.",
     serviceLevel: "dealer",
-    notes: "NGK CPR8EA-9 or equivalent. Gap: 0.8–0.9 mm.",
+    notes: "NGK CPR8EA-9 or equivalent. Gap: 0.8-0.9 mm.",
   },
   {
     name: "Valve Clearance",
     category: "engine",
     intervalKm: 12000,
     intervalMonths: 12,
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.82 (I every 12,000 km; column alignment in scan uncertain - verify against manual)",
     description: "Inspect and adjust valve clearance.",
     serviceLevel: "dealer",
     notes: "Requires feeler gauge. Intake: 0.16±0.03mm, Exhaust: 0.27±0.03mm.",
@@ -61,6 +73,7 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "engine",
     intervalKm: 6000,
     intervalMonths: 12,
+    intervalSource: "Honda ADV160 Owner's Manual p.82 (I every 6,000 km)",
     description: "Check and adjust idle speed.",
     serviceLevel: "dealer",
     notes: "Idle speed: 1400±100 RPM (warm engine).",
@@ -70,6 +83,7 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "engine",
     intervalKm: 12000,
     intervalMonths: 12,
+    intervalSource: "Honda ADV160 Owner's Manual p.82 (C every 12,000 km)",
     description: "Clean oil strainer screen.",
     serviceLevel: "dealer",
     notes: "Inspect for debris during cleaning. Replace if damaged.",
@@ -79,6 +93,8 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "engine",
     intervalKm: 12000,
     intervalMonths: 12,
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.82 (C cadence; column alignment in scan uncertain - verify against manual)",
     description: "Clean crankcase breather tube and check valve.",
     serviceLevel: "dealer",
     notes: "Ensure tube is not clogged. Replace if cracked or brittle.",
@@ -90,15 +106,20 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "transmission",
     intervalKm: 12000,
     intervalMonths: 12,
-    description: "Inspect and replace drive belt if worn.",
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.83 (I every 12,000 km; R at 24,000 km)",
+    description:
+      "Inspect drive belt for wear. Scheduled replacement at ~24,000 km.",
     serviceLevel: "dealer",
-    notes: "Check for cracks, fraying, or glazing. Replace every 12,000 km or sooner if damaged.",
+    notes: "Check for cracks, fraying, or glazing. Replace every 24,000 km or sooner if damaged.",
   },
   {
     name: "Rollers / Slide Piece",
     category: "transmission",
     intervalKm: 6000,
     intervalMonths: 12,
+    intervalSource:
+      "Unofficial: Honda ADV maintenance guide infographic; not listed in Owner's Manual schedule",
     description: "Inspect CVT rollers and slide pieces for wear.",
     serviceLevel: "dealer",
     notes: "Replace if flat spots, uneven wear, or diameter below service limit.",
@@ -107,15 +128,18 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     name: "Final Drive Oil",
     category: "transmission",
     intervalMonths: 24,
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.83 (regular replace: 2 years; I at 12,000 km)",
     description: "Drain and replace final drive gear oil.",
     serviceLevel: "dealer",
-    notes: "Use SAE 80W-90 GL-4 gear oil. Capacity: ~110 mL.",
+    notes: "Use SAE 80W-90 GL-4 gear oil. Capacity: ~110 mL. Inspect at 12,000 km services.",
   },
   {
     name: "Clutch Shoes Wear",
     category: "transmission",
     intervalKm: 12000,
     intervalMonths: 12,
+    intervalSource: "Honda ADV160 Owner's Manual p.83 (I every 12,000 km)",
     description: "Inspect clutch shoe thickness and spring tension.",
     serviceLevel: "dealer",
     notes: "Replace if lining thickness is below service limit or if slipping occurs.",
@@ -127,9 +151,23 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "brakes",
     intervalKm: 6000,
     intervalMonths: 12,
-    description: "Inspect brake pads, discs, fluid level, and lines.",
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.83 (I every 6,000 km + annual check, incl. brake pads wear)",
+    description: "Inspect brake pads, discs, and lines. Fluid replacement is tracked separately.",
     serviceLevel: "owner",
-    notes: "Check pad thickness, disc runout, fluid level. Replace fluid every 2 years (24 months).",
+    notes: "Check pad thickness, disc runout, and line condition. See the separate 'Brake Fluid' item.",
+  },
+  {
+    name: "Brake Fluid",
+    category: "brakes",
+    intervalMonths: 24,
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.83 (regular replace: 2 years; I level every 6,000 km from 12,000 km)",
+    description:
+      "Replace brake fluid. Inspect fluid level at every regular service.",
+    serviceLevel: "dealer",
+    notes:
+      "Replacement requires mechanical skill (manual footnote 4). Check level between services.",
   },
 
   // ── Tires ─────────────────────────────────────────────────────────
@@ -138,6 +176,8 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "tires",
     intervalKm: 1000,
     intervalMonths: 1,
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.83 (pre-ride check; modeled as 1,000 km / 1 month)",
     description: "Check tire pressure, tread depth, and sidewall condition.",
     serviceLevel: "owner",
     notes: "Front: 200 kPa (29 psi). Rear: 225 kPa (33 psi). Minimum tread depth: 1.6 mm.",
@@ -149,6 +189,8 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "electrical",
     intervalKm: 6000,
     intervalMonths: 12,
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.83 (I every 6,000 km from 12,000 km + annual check)",
     description: "Check battery terminals, electrolyte level, and charge.",
     serviceLevel: "owner",
     notes: "Maintain terminal cleanliness. Refill with distilled water if low. Charge if voltage < 12.4V.",
@@ -156,11 +198,13 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
   {
     name: "Lights, Signals & Horn",
     category: "electrical",
-    intervalKm: 6000,
+    intervalKm: 12000,
     intervalMonths: 12,
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.83 (I every 12,000 km + annual check; pre-ride check recommended)",
     description: "Check operation of headlight, taillight, turn signals, and horn.",
     serviceLevel: "owner",
-    notes: "Replace any non-working bulbs. Check for cracked lenses.",
+    notes: "Replace any non-working bulbs. Check for cracked lenses. Headlight aim: I every 12,000 km (p.83).",
   },
 
   // ── Cooling ───────────────────────────────────────────────────────
@@ -168,6 +212,8 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     name: "Coolant",
     category: "cooling",
     intervalMonths: 36,
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.82 (regular replace: 3 years; I level every 12,000 km)",
     description: "Drain, flush, and replace engine coolant.",
     serviceLevel: "dealer",
     notes: "Use Honda HP Coolant or ethylene glycol based. Capacity: ~0.6L. Dispose of old coolant properly.",
@@ -175,8 +221,10 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
   {
     name: "Cooling System",
     category: "cooling",
-    intervalKm: 6000,
+    intervalKm: 12000,
     intervalMonths: 12,
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.82 (I every 12,000 km + annual check)",
     description: "Inspect radiator, hoses, fan operation, and coolant level.",
     serviceLevel: "dealer",
     notes: "Check for leaks, fan activates at ~100°C. Replace hoses if cracked or swollen.",
@@ -188,6 +236,8 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "fuel",
     intervalKm: 12000,
     intervalMonths: 12,
+    intervalSource:
+      "Unofficial: Honda ADV maintenance guide infographic (I ~every 12,000 km); injector not listed in Owner's Manual schedule",
     description: "Inspect and clean fuel injector.",
     serviceLevel: "dealer",
     notes: "Use fuel system cleaner or ultrasonic cleaning. Check injector seal.",
@@ -197,6 +247,7 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "fuel",
     intervalKm: 6000,
     intervalMonths: 12,
+    intervalSource: "Honda ADV160 Owner's Manual p.82 (I every 6,000 km + annual check)",
     description: "Inspect fuel lines for cracks, leakage, or deterioration.",
     serviceLevel: "dealer",
     notes: "Replace if any cracks or hardening detected. Check all clamps are tight.",
@@ -208,18 +259,21 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "general",
     intervalKm: 12000,
     intervalMonths: 12,
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.82 (R every 12,000 km; service more frequently in wet/dusty areas)",
     description: "Replace air cleaner element.",
     serviceLevel: "dealer",
-    notes: "Inspect more frequently in dusty conditions. Never use compressed air to clean.",
+    notes: "Inspect more frequently in wet or dusty conditions. Never use compressed air to clean.",
   },
   {
     name: "Throttle Operation",
     category: "general",
     intervalKm: 6000,
     intervalMonths: 12,
+    intervalSource: "Honda ADV160 Owner's Manual p.82 (I every 6,000 km + annual check)",
     description: "Check throttle grip free play and smooth operation.",
     serviceLevel: "owner",
-    notes: "Free play: 2–6 mm. Lubricate cable if stiff. Ensure smooth return.",
+    notes: "Free play: 2-6 mm. Lubricate cable if stiff. Ensure smooth return.",
   },
 
   // ── Chassis ───────────────────────────────────────────────────────
@@ -228,6 +282,7 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "chassis",
     intervalKm: 6000,
     intervalMonths: 12,
+    intervalSource: "Honda ADV160 Owner's Manual p.83 (I every 6,000 km + annual check)",
     description: "Lubricate side stand pivot and check spring tension.",
     serviceLevel: "owner",
     notes: "Ensure stand retracts fully. Replace spring if weak.",
@@ -237,6 +292,7 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "chassis",
     intervalKm: 12000,
     intervalMonths: 12,
+    intervalSource: "Honda ADV160 Owner's Manual p.83 (I every 12,000 km + annual check)",
     description: "Inspect front forks and rear shock for leaks and operation.",
     serviceLevel: "dealer",
     notes: "Check fork seal condition, damping response. Change fork oil if leaking.",
@@ -246,6 +302,8 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
     category: "chassis",
     intervalKm: 12000,
     intervalMonths: 12,
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.83 (chassis fasteners; scan cadence uncertain - verify against manual)",
     description: "Check tightness of chassis fasteners and safety-critical bolts.",
     serviceLevel: "owner",
     notes: "Pay special attention to engine mounts, brake caliper bolts, axle nuts, and handlebar clamps.",
@@ -253,8 +311,10 @@ export const SEED_MAINTENANCE_ITEMS: SeedMaintenanceItem[] = [
   {
     name: "Steering Head Bearings",
     category: "chassis",
-    intervalKm: 24000,
-    intervalMonths: 24,
+    intervalKm: 12000,
+    intervalMonths: 12,
+    intervalSource:
+      "Honda ADV160 Owner's Manual p.83 (I every 12,000 km; legacy seed had 24,000 km)",
     description: "Inspect, clean, and repack steering head bearings.",
     serviceLevel: "dealer",
     notes: "Check for notchiness. Replace if pitted or worn. Apply lithium soap grease.",

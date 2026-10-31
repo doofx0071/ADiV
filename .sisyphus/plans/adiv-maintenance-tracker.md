@@ -6,6 +6,8 @@
 
 > **Maintenance interval provenance update (2026-10-29):** The current seed values are a legacy hybrid starter schedule. Per-item market, model-year, manual, and page citations were not retained, so do not describe the whole list as verified official Honda guidance. The app now allows intervals to be edited and sources to be recorded; verify values against the manual for the specific motorcycle.
 >
+> **Maintenance interval verification update (2026-11-01):** Seed values were verified against the scanned Owner's Manual maintenance schedule (pp. 82-83). Steering Head Bearings 24,000→12,000 km, Lights/Horn and Cooling System 6,000→12,000 km, and a new 26th item 'Brake Fluid' (replace every 2 years) were applied; every seed item now carries an intervalSource citation. Full transcription, conflicts with secondary references, and items to double-check: docs/maintenance-intervals.md.
+>
 > **Deliverables**:
 > - Next.js 14 App Router web app with Convex backend
 > - Pre-seeded Honda ADV160 maintenance schedule (25 items)
