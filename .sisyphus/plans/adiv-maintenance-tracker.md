@@ -28,7 +28,7 @@ Build a web app (mobile responsive) to track and monitor a Honda ADV160 RoadSync
 
 ### Interview Summary
 **Key Discussions**:
-- Single bike only (ADV160), no auth, no PWA, responsive web app
+- Single bike only (ADV160), no auth, installable network-required PWA
 - Hybrid maintenance schedule: 12 items from user's Honda image + extra critical official items (valve clearance, final drive oil, oil strainer screen, crankcase breather, clutch shoes, suspension, nuts & bolts, steering head bearings, idle speed, fuel line, throttle operation, cooling system, side stand)
 - Feature set: maintenance tracking, ride logging, fuel tracking (km/L), expense tracking, photo docs, dashboard with charts, dark cyber-moto theme, gamification (badges/streaks/milestones), browser notifications
 - Tech stack: Next.js 14 App Router + React + TypeScript, Convex.dev, shadcn/ui + Tailwind, Tremor charts, React Hook Form + Zod, Sonner, date-fns, Zustand, Vitest (TDD)
@@ -43,12 +43,12 @@ Build a web app (mobile responsive) to track and monitor a Honda ADV160 RoadSync
 ### Metis Review
 **Identified Gaps** (addressed):
 - **Currency/units/timezone**: Defaulted to PHP, km, liters, Asia/Manila (based on user location context)
-- **Reminder method without auth/PWA**: In-app dashboard badges + overdue lists + optional browser notifications
+- **Reminder method without auth or push service**: In-app dashboard badges + overdue lists + optional local browser notifications while the app is open
 - **Early maintenance handling**: Reset interval from actual service date (Honda standard)
 - **Past maintenance capture**: Onboarding flow to input service history and current odometer
 - **Photo limits**: 5 photos per record, 5MB max
 - **Gamification prominence**: Enabled by default, unobtrusive (badges visible, not blocking core flows)
-- **Offline capability**: Online-only (no PWA), designed for quick post-ride logging
+- **Offline capability**: Convex data and logging require a network connection; the notification-only service worker does not cache pages or data
 - **Data export**: JSON/CSV export included for backup
 - **Maintenance interval accuracy**: Keep intervals editable and record the exact source when verified; do not label uncited seed values as official.
 
@@ -96,7 +96,7 @@ Build a personal motorcycle maintenance tracker web app that makes keeping a Hon
 - NO social features — no sharing, no leaderboards, no public profiles
 - NO external service integrations — no Strava, Google Maps, RoadSync API, weather APIs
 - NO email/SMS/push notifications (beyond optional browser notifications)
-- NO PWA/offline-first architecture — responsive web only
+- PWA installability is supported; do not add offline data, queued writes, or background push
 - NO advanced predictive analytics — simple interval math only
 - NO public API or webhooks
 - NO Server Components directly querying Convex — Client Components with `useQuery` only
@@ -237,7 +237,7 @@ Max Concurrent: 6 (Waves 2 & 3)
   **Must NOT do**:
   - Do NOT nest `convex/` inside `app/` — keep at project root
   - Do NOT configure auth (no auth needed)
-  - Do NOT add PWA config
+  - PWA installability is provided by the App Router manifest; no offline caching or push service is in scope
 
   **Recommended Agent Profile**:
   - **Category**: `quick`
@@ -1409,12 +1409,12 @@ Max Concurrent: 6 (Waves 2 & 3)
   - Trigger notifications when:
     - User opens app and an item became overdue since last visit
     - User opens app and an item is due within 7 days
-  - Do NOT send background/push notifications (requires service worker + PWA — out of scope)
+  - Do NOT send background/push notifications; local alerts are generated only while the app is open
   - Write Playwright tests for notification toggle and triggering logic
 
   **Must NOT do**:
   - Do NOT add email or SMS notifications
-  - Do NOT add service worker or PWA
+  - A root-scoped notification-only service worker may display local alerts; it must not cache requests or handle push events
   - Do NOT send notifications when app is closed (browser limitation)
 
   **Recommended Agent Profile**:
@@ -1467,7 +1467,7 @@ Max Concurrent: 6 (Waves 2 & 3)
   - Optimize image loading for mobile (smaller thumbnails)
 
   **Must NOT do**:
-  - Do NOT create separate mobile app or PWA
+  - Do NOT create a separate native mobile app; use the installable web app
   - Do NOT remove desktop features on mobile
 
   **Recommended Agent Profile**:

@@ -74,7 +74,7 @@ export function UpcomingTasksWidget() {
     const due = evaluations.filter((evaluation) => evaluation.knownStatus === "due").length;
     if (overdue + due > 0) {
       notifiedRef.current = true;
-      showBatchMaintenanceNotification(overdue, due);
+      void showBatchMaintenanceNotification(overdue, due);
     }
   }, [bike, maintenanceItems, evaluations, permission]);
 

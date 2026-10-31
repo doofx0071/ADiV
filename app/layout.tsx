@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from "./ClientProviders";
@@ -16,6 +16,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "AdiV - ADV160 Maintenance Tracker",
   description: "Personal motorcycle maintenance tracker for Honda ADV160",
+  applicationName: "AdiV",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#e62025",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

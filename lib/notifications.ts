@@ -29,54 +29,70 @@ export async function requestNotificationPermission(): Promise<boolean> {
   try {
     const permission = await Notification.requestPermission();
     localStorage.setItem(NOTIFICATION_PERMISSION_KEY, permission);
+    if (permission === "granted" && "serviceWorker" in navigator) {
+      await getNotificationRegistration();
+    }
     return permission === "granted";
   } catch {
     return false;
   }
 }
 
+let registrationPromise: Promise<ServiceWorkerRegistration | null> | undefined;
+
+async function getNotificationRegistration(): Promise<ServiceWorkerRegistration | null> {
+  if (!("serviceWorker" in navigator)) return null;
+  registrationPromise ??= navigator.serviceWorker
+    .register("/sw.js", { scope: "/", updateViaCache: "none" })
+    .catch(() => null);
+  return registrationPromise;
+}
+
+async function displayNotification(title: string, options: NotificationOptions): Promise<void> {
+  try {
+    const registration = await getNotificationRegistration();
+    if (registration && "showNotification" in registration) {
+      await registration.showNotification(title, options);
+      return;
+    }
+
+    // The Notification constructor is a desktop fallback; mobile browsers
+    // generally require ServiceWorkerRegistration.showNotification().
+    new Notification(title, options);
+  } catch {
+    // Browser notification support is optional; in-app reminders remain available.
+  }
+}
+
 /**
  * Show a browser notification for due maintenance.
  */
-export function showMaintenanceNotification(
+export async function showMaintenanceNotification(
   itemName: string,
   dueInfo: string
-): Notification | null {
-  if (!areNotificationsSupported()) return null;
-  if (Notification.permission !== "granted") return null;
-
-  try {
-    const notification = new Notification("AdiV Maintenance Reminder", {
+): Promise<void> {
+  if (!areNotificationsSupported() || Notification.permission !== "granted") return;
+  await displayNotification("AdiV Maintenance Reminder", {
       body: `${itemName} is ${dueInfo}`,
       icon: "/icon-192x192.png",
       badge: "/icon-192x192.png",
       tag: `maintenance-${itemName}`,
       requireInteraction: false,
-    });
-
-    notification.onclick = () => {
-      window.focus();
-      notification.close();
-    };
-
-    return notification;
-  } catch {
-    return null;
-  }
+      data: { url: "/dashboard" },
+  });
 }
 
 /**
  * Show a batch notification summarizing multiple due items.
  */
-export function showBatchMaintenanceNotification(
+export async function showBatchMaintenanceNotification(
   overdueCount: number,
   dueCount: number
-): Notification | null {
-  if (!areNotificationsSupported()) return null;
-  if (Notification.permission !== "granted") return null;
+): Promise<void> {
+  if (!areNotificationsSupported() || Notification.permission !== "granted") return;
 
   const total = overdueCount + dueCount;
-  if (total === 0) return null;
+  if (total === 0) return;
 
   let body: string;
   if (overdueCount > 0 && dueCount > 0) {
@@ -87,23 +103,12 @@ export function showBatchMaintenanceNotification(
     body = `${dueCount} maintenance item${dueCount > 1 ? "s are" : " is"} due soon.`;
   }
 
-  try {
-    const notification = new Notification("AdiV Maintenance Alert", {
+  await displayNotification("AdiV Maintenance Alert", {
       body,
       icon: "/icon-192x192.png",
       badge: "/icon-192x192.png",
       tag: "maintenance-batch",
       requireInteraction: false,
-    });
-
-    notification.onclick = () => {
-      window.focus();
-      window.location.href = "/dashboard";
-      notification.close();
-    };
-
-    return notification;
-  } catch {
-    return null;
-  }
+      data: { url: "/dashboard" },
+  });
 }

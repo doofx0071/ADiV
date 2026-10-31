@@ -74,12 +74,14 @@ export default defineSchema({
     .index("by_date", ["date"]),
 
   // ── Ride Logs ─────────────────────────────────────────────────────
-  // Track individual rides: distance, duration, route notes.
+  // startAt/endAt are optional for ride records created before time tracking.
   rides: defineTable({
     startOdometer: v.number(),
     endOdometer: v.number(),
     distance: v.number(),
     date: v.number(),
+    startAt: v.optional(v.number()),
+    endAt: v.optional(v.number()),
     durationMinutes: v.number(),
     notes: v.optional(v.string()),
   }).index("by_date", ["date"]),

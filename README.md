@@ -29,6 +29,10 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Install on a phone
+
+AdiV can be installed from a secure HTTPS deployment. On iPhone, open the site in Safari, tap Share, then choose **Add to Home Screen**. On Android, use the browser's **Install app** or **Add to Home screen** command. Convex data still requires a network connection.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
