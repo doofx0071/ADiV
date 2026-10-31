@@ -14,12 +14,14 @@ import {
   BarChart3,
   Image,
   Wrench,
+  Wallet,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", shortLabel: "Home", icon: LayoutDashboard },
   { href: "/maintenance", label: "Maintenance", shortLabel: "Maint.", icon: Wrench },
   { href: "/analytics", label: "Analytics", shortLabel: "Stats", icon: BarChart3 },
+  { href: "/expenses", label: "Expenses", shortLabel: "Costs", icon: Wallet },
   { href: "/gallery", label: "Gallery", shortLabel: "Gallery", icon: Image },
   { href: "/history", label: "History", shortLabel: "History", icon: History },
   { href: "/achievements", label: "Achievements", shortLabel: "Awards", icon: Award },

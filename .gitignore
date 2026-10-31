@@ -62,3 +62,6 @@ nav-header-check.png
 
 # ZCode local state
 .zcode/
+
+# Expo local state (running expo from repo root by mistake)
+.expo/

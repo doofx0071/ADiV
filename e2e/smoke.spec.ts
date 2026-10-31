@@ -14,7 +14,7 @@ test.describe("smoke", () => {
     await expect(primaryNav).toBeHidden();
 
     // Top nav links render at the xl breakpoint
-    for (const label of ["Dashboard", "Maintenance", "Analytics", "History", "Achievements", "Export"]) {
+    for (const label of ["Dashboard", "Maintenance", "Analytics", "Expenses", "History", "Achievements", "Export"]) {
       await expect(
         page.getByRole("link", { name: label, exact: true }).first()
       ).toBeVisible();
