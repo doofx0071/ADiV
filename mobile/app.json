@@ -60,6 +60,22 @@
           "color": "#e62025",
           "defaultChannel": "maintenance-reminders"
         }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "adiv-widget",
+              "label": "ADiV",
+              "description": "Odometer and the next service your bike needs, at a glance.",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2
+            }
+          ]
+        }
       ]
     ],
     "experiments": {

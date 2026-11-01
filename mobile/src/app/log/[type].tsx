@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { Image, Pressable, View } from "react-native";
+import { Image, Platform, Pressable, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery } from "convex/react";
+import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { Camera, ImagePlus, X } from "lucide-react-native";
 import { api, type Id } from "@/lib/api";
@@ -125,6 +126,7 @@ export default function LogScreen() {
         await addExpense({ category: expense.category, amount, date: logDate, description: expense.description.trim() || undefined });
       }
       try { await checkAchievements({}); } catch { /* Logging succeeds even if achievements are unavailable. */ }
+      if (Platform.OS !== "web") void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.back();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Could not save this log.");

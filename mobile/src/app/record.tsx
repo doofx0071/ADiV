@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { useMutation, useQuery } from "convex/react";
 import { Map as MapView, Camera, GeoJSONSource, Layer, UserLocation } from "@maplibre/maplibre-react-native";
 import * as Speech from "expo-speech";
+import * as Haptics from "expo-haptics";
 import { Disc, Flag, Navigation, Square } from "lucide-react-native";
 import { api } from "@/lib/api";
 import { AppButton, Banner, Field, LoadingState, Page, StatCard } from "@/components/ui";
@@ -231,6 +232,7 @@ export default function RecordScreen() {
       });
       await clearActiveRide();
       Speech.stop();
+      if (Platform.OS !== "web") void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       pointsRef.current = [];
       setPoints([]);
       setPlanned(null);

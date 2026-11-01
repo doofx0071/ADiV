@@ -19,6 +19,8 @@ import { AppThemeProvider, useAppTheme } from "@/lib/theme";
 import { convexClient } from "@/lib/convex";
 import { configureNotificationHandler, subscribeToMaintenanceNotification } from "@/lib/notification-api";
 import { NotificationSync } from "@/components/notification-sync";
+import { WidgetSync } from "@/components/widget-sync";
+import "@/widgets/widget-task-handler";
 
 configureNotificationHandler();
 
@@ -49,6 +51,7 @@ function Navigator() {
     <>
       <StatusBar style={resolved === "dark" ? "light" : "dark"} />
       {Platform.OS !== "web" ? <NotificationSync /> : null}
+      {Platform.OS !== "web" ? <WidgetSync /> : null}
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: resolved === "dark" ? "#0a0a0f" : "#f8fafc" } }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="setup" />
