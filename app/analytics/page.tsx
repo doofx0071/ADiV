@@ -8,6 +8,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/layout/stat-card";
 import { CostChart } from "@/components/charts/cost-chart";
 import { FuelEfficiencyChart } from "@/components/charts/fuel-efficiency-chart";
+import { FuelPriceChart } from "@/components/charts/fuel-price-chart";
+import { FuelInsightsSections } from "@/components/charts/fuel-insights-sections";
 import { MaintenanceFrequencyChart } from "@/components/charts/maintenance-frequency-chart";
 import { OdometerChart } from "@/components/charts/odometer-chart";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,6 +39,7 @@ export default function AnalyticsPage() {
   const maintenanceStats = useQuery(api.maintenance.getMaintenanceStats);
   const expenseStats = useQuery(api.expenses.getExpenseStats);
   const fuelStats = useQuery(api.fuel.getFuelStats);
+  const fuelInsights = useQuery(api.fuel.getFuelInsights);
   const rideStats = useQuery(api.rides.getRideStats);
 
   useEffect(() => {
@@ -105,7 +108,11 @@ export default function AnalyticsPage() {
                     ? `${fuelStats.avgKmPerLiter.toFixed(1)} km/L`
                     : "—"
                 }
-                description={`${fuelStats.logCount} fuel-up${fuelStats.logCount === 1 ? "" : "s"}`}
+                description={
+                  fuelInsights && fuelInsights.validSegments.length > 0
+                    ? `${fuelInsights.validSegments.length} valid segment${fuelInsights.validSegments.length === 1 ? "" : "s"}${fuelInsights.tankRangeKm > 0 ? ` · ~${Math.round(fuelInsights.tankRangeKm).toLocaleString()} km range` : ""}`
+                    : `${fuelStats.logCount} fuel-up${fuelStats.logCount === 1 ? "" : "s"}`
+                }
                 icon={<Fuel className="h-4 w-4" />}
               />
               <StatCard
@@ -132,11 +139,21 @@ export default function AnalyticsPage() {
           <ErrorBoundary fallback={<StatsFallback title="Fuel efficiency" />}>
             <FuelEfficiencyChart />
           </ErrorBoundary>
+          <ErrorBoundary fallback={<StatsFallback title="Fuel price" />}>
+            <FuelPriceChart />
+          </ErrorBoundary>
           <ErrorBoundary fallback={<StatsFallback title="Odometer progression" />}>
             <OdometerChart />
           </ErrorBoundary>
           <ErrorBoundary fallback={<StatsFallback title="Services by category" />}>
             <MaintenanceFrequencyChart />
+          </ErrorBoundary>
+        </div>
+
+        {/* Fuel insight panels */}
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <ErrorBoundary fallback={<StatsFallback title="Refuel patterns" />}>
+            <FuelInsightsSections />
           </ErrorBoundary>
         </div>
       </div>
