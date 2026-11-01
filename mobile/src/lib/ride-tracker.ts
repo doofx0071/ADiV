@@ -155,3 +155,16 @@ export async function discardRecording(): Promise<void> {
   await pauseRecording();
   await clearActiveRide();
 }
+
+/** One-shot current position for route planning (start of a guided ride). */
+export async function currentPosition(): Promise<[number, number] | null> {
+  if (Platform.OS === "web") return null;
+  try {
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    return [position.coords.longitude, position.coords.latitude];
+  } catch {
+    return null;
+  }
+}

@@ -4,15 +4,18 @@ import { AppText as Text } from "@/components/app-text";
 import { router } from "expo-router";
 import { useMutation, useQuery } from "convex/react";
 import { Map as MapView, Camera, GeoJSONSource, Layer, UserLocation } from "@maplibre/maplibre-react-native";
-import { Disc, Flag, Square } from "lucide-react-native";
+import * as Speech from "expo-speech";
+import { Disc, Flag, Navigation, Square } from "lucide-react-native";
 import { api } from "@/lib/api";
 import { AppButton, Banner, Field, LoadingState, Page, StatCard } from "@/components/ui";
-import { km } from "@/lib/format";
+import { km, php } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
 import { OSM_STYLE, ROUTE_LINE_PAINT, boundsFor, routeFeatureCollection } from "@/lib/map-style";
 import { encodePolyline, trackDistanceKm, type TrackPoint } from "@/lib/shared";
+import { metersToStep, planRoute, SPEAK_DISTANCE_METERS, type PlannedRoute } from "@/lib/navigation";
 import {
   clearActiveRide,
+  currentPosition,
   discardRecording,
   getTrackPoints,
   loadActiveRide,
@@ -49,6 +52,14 @@ export default function RecordScreen() {
   const [now, setNow] = useState(() => Date.now());
   const [startOdometerInput, setStartOdometerInput] = useState("");
   const [notes, setNotes] = useState("");
+
+  // Guided navigation: long-press the map to plan a route, voice callouts
+  // announce maneuvers as you approach them.
+  const [planning, setPlanning] = useState(false);
+  const [destination, setDestination] = useState<[number, number] | null>(null);
+  const [planned, setPlanned] = useState<PlannedRoute | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
 
   // The tracker buffer is module-level; mirror it into state for rendering.
   const pointsRef = useRef<TrackPoint[]>([]);
@@ -97,6 +108,62 @@ export default function RecordScreen() {
     [points],
   );
 
+  const plannedGeoJSON = useMemo(() => {
+    if (!planned) return { type: "FeatureCollection" as const, features: [] };
+    return {
+      type: "FeatureCollection" as const,
+      features: [
+        {
+          type: "Feature" as const,
+          properties: {},
+          geometry: { type: "LineString" as const, coordinates: planned.coordinates },
+        },
+      ],
+    };
+  }, [planned]);
+
+  const handleLongPress = useCallback(
+    async (event: { nativeEvent: { lngLat: [number, number] } }) => {
+      if (!planning || phase === "recording") return;
+      const to = event.nativeEvent.lngLat;
+      setDestination(to);
+      setRouteLoading(true);
+      setError("");
+      try {
+        const last = pointsRef.current[pointsRef.current.length - 1];
+        const from = last ? ([last.lon, last.lat] as [number, number]) : await currentPosition();
+        if (!from) {
+          setError("No GPS fix yet — step outside and try again.");
+          return;
+        }
+        const route = await planRoute(from, to);
+        setPlanned(route);
+        setStepIndex(0);
+      } catch (e) {
+        setPlanned(null);
+        setError(e instanceof Error ? e.message : "Could not plan the route.");
+      } finally {
+        setRouteLoading(false);
+      }
+    },
+    [planning, phase],
+  );
+
+  // Voice callouts: announce the next maneuver when close enough to it.
+  useEffect(() => {
+    if (phase !== "recording" || !planned || stepIndex >= planned.steps.length) return;
+    const last = points[points.length - 1];
+    if (!last) return;
+    const step = planned.steps[stepIndex];
+    if (metersToStep([last.lon, last.lat], step) <= SPEAK_DISTANCE_METERS) {
+      Speech.speak(step.text);
+      setStepIndex((index) => index + 1);
+    }
+  }, [points, phase, planned, stepIndex]);
+
+  const nextStep =
+    planned && stepIndex < planned.steps.length ? planned.steps[stepIndex] : null;
+
   const handleStart = useCallback(async () => {
     setError("");
     setBusy(true);
@@ -119,11 +186,16 @@ export default function RecordScreen() {
   }, []);
 
   const handleDiscard = useCallback(async () => {
+    Speech.stop();
     await discardRecording();
     pointsRef.current = [];
     setPoints([]);
     setStartOdometerInput("");
     setNotes("");
+    setPlanned(null);
+    setDestination(null);
+    setPlanning(false);
+    setStepIndex(0);
     setPhase("idle");
   }, []);
 
@@ -158,8 +230,13 @@ export default function RecordScreen() {
         notes: notes.trim() || undefined,
       });
       await clearActiveRide();
+      Speech.stop();
       pointsRef.current = [];
       setPoints([]);
+      setPlanned(null);
+      setDestination(null);
+      setPlanning(false);
+      setStepIndex(0);
       Alert.alert("Ride saved!", "Your GPS route was attached to this ride.");
       router.replace("/rides");
     } catch (e) {
@@ -177,6 +254,13 @@ export default function RecordScreen() {
     <Page back eyebrow="Ride recorder" title="Record ride" subtitle={recording ? "Tracking in the background — keep the phone mounted." : "GPS-tracked rides with your route on a map."}>
       {Platform.OS === "web" ? (
         <Banner title="Android only" body="GPS recording runs in the Android app. Open ADiV on your phone to record rides." />
+      ) : null}
+      {recording && nextStep ? (
+        <Banner
+          title={`In ${Math.round(metersToStep(points.length > 0 ? [points[points.length - 1].lon, points[points.length - 1].lat] : [0, 0], nextStep))} m`}
+          body={nextStep.text}
+          tone="success"
+        />
       ) : null}
       {error ? (
         <Banner title="Recorder" body={error} tone="warning" />
@@ -197,7 +281,11 @@ export default function RecordScreen() {
 
       {points.length >= 2 ? (
         <View style={{ height: 280, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
-          <MapView mapStyle={OSM_STYLE} style={{ flex: 1 }}>
+          <MapView
+            mapStyle={OSM_STYLE}
+            style={{ flex: 1 }}
+            onLongPress={planning && phase !== "recording" ? (event) => void handleLongPress(event) : undefined}
+          >
             {recording ? (
               <Camera trackUserLocation="default" zoom={16} />
             ) : (
@@ -209,6 +297,15 @@ export default function RecordScreen() {
             <GeoJSONSource id="routeSource" data={routeGeoJSON}>
               <Layer id="routeLine" type="line" paint={ROUTE_LINE_PAINT} />
             </GeoJSONSource>
+            {planned ? (
+              <GeoJSONSource id="plannedSource" data={plannedGeoJSON}>
+                <Layer
+                  id="plannedLine"
+                  type="line"
+                  paint={{ "line-color": "#f59e0b", "line-width": 4, "line-dasharray": [2, 2] }}
+                />
+              </GeoJSONSource>
+            ) : null}
             {recording ? <UserLocation /> : null}
           </MapView>
         </View>
@@ -227,6 +324,41 @@ export default function RecordScreen() {
           ) : (
             <View style={{ gap: 10 }}>
               <AppButton label="Start recording" onPress={() => void handleStart()} busy={busy} icon={<Disc size={17} color="#ffffff" />} />
+              <AppButton
+                label={planning ? "Cancel route planning" : "Plan a route (voice navigation)"}
+                variant="outline"
+                onPress={() => {
+                  setPlanning(!planning);
+                  setDestination(null);
+                  setPlanned(null);
+                  setError("");
+                }}
+                icon={<Navigation size={16} color={colors.primary} />}
+              />
+              {planning ? (
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 19 }}>
+                  {destination
+                    ? "Long-press again to move the destination."
+                    : "Long-press the map to drop a destination — the route is planned over free OSRM routing."}
+                </Text>
+              ) : null}
+              {routeLoading ? <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>Planning route…</Text> : null}
+              {planned ? (
+                <View style={{ gap: 8 }}>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "700" }}>
+                    Route: {km(planned.distanceKm)} · about {Math.round(planned.durationMinutes)} min · {planned.steps.length} turns
+                  </Text>
+                  <AppButton
+                    label="Start guided ride"
+                    onPress={() => void handleStart()}
+                    busy={busy}
+                    icon={<Disc size={17} color="#ffffff" />}
+                  />
+                  <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                    Turns are announced aloud as you approach them (routing by OSRM).
+                  </Text>
+                </View>
+              ) : null}
               <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 19 }}>
                 Recording keeps a persistent notification so tracking survives screen-off. Enter the
                 odometer reading when you save — GPS distance is measured from your actual route.
