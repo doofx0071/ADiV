@@ -78,6 +78,7 @@ export default function AnalyticsScreen() {
   const expenses = useQuery(api.expenses.getExpenses, { limit: 1000 });
   const expenseStats = useQuery(api.expenses.getExpenseStats, {});
   const items = useQuery(api.maintenance.getMaintenanceItems);
+  const fuelInsights = useQuery(api.fuel.getFuelInsights);
   const { colors } = useAppTheme();
   const { width: screenWidth } = useWindowDimensions();
   // The carousel lives inside Page's 18px horizontal padding, so each page
@@ -97,7 +98,7 @@ export default function AnalyticsScreen() {
       const fuelSpend = (fuelLogs ?? []).filter((log) => log.date >= start && log.date < end).reduce((sum, log) => sum + log.totalPrice, 0);
       const maintenanceSpend = (maintenanceLogs ?? []).filter((log) => log.date >= start && log.date < end).reduce((sum, log) => sum + (log.cost ?? 0), 0);
       const spend = expenseSpend + fuelSpend + maintenanceSpend;
-      return { label: month.toLocaleDateString("en-PH", { month: "short" }), distance, spend };
+      return { label: month.toLocaleDateString("en-PH", { month: "short" }), distance, spend, fuelSpend };
     });
   }, [rides, expenses, fuelLogs, maintenanceLogs]);
 
@@ -116,6 +117,7 @@ export default function AnalyticsScreen() {
   if (loading) return <Page><LoadingState label="Building your riding insights…" /></Page>;
 
   const monthlyDistanceMax = Math.max(...monthly.map((entry) => entry.distance), 1);
+  const monthlyFuelMax = Math.max(...monthly.map((entry) => entry.fuelSpend), 1);
   const sixMonthSpend = monthly.reduce((sum, entry) => sum + entry.spend, 0);
   const expenseMax = Math.max(...expenseCategories.map((entry) => entry.amount), 1);
   const maintenanceMax = Math.max(...maintCategories.map((entry) => entry.amount), 1);
@@ -157,9 +159,20 @@ export default function AnalyticsScreen() {
               {expenseCategories.length ? [...expenseCategories].sort((a, b) => b.amount - a.amount).map((entry) => <BarRow key={entry.category} label={entry.category} value={entry.amount} max={expenseMax} caption={`${php(entry.amount)} · ${entry.count}`} color={colors.primary} />) : <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>Expense categories appear after your first expense log.</Text>}
             </Card>
           </View>
+          <View style={{ width: pageWidth }}>
+            <Card>
+              <SectionTitle title="Fuel · 6 months" />
+              {monthly.map((entry) => <BarRow key={`fuel-${entry.label}`} label={entry.label} value={entry.fuelSpend} max={monthlyFuelMax} caption={php(entry.fuelSpend)} color={colors.warning} />)}
+              {fuelInsights && fuelInsights.avgPricePerLiter > 0 ? (
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 4 }}>
+                  Avg {php(fuelInsights.avgPricePerLiter)}/L · latest {php(fuelInsights.latestPricePerLiter)}/L · {fuelInsights.refuelCount} refuels
+                </Text>
+              ) : null}
+            </Card>
+          </View>
         </ScrollView>
-        <View style={{ flexDirection: "row", justifyContent: "center", gap: 7 }} accessibilityLabel={`Chart ${chartIndex + 1} of 3`}>
-          {[0, 1, 2].map((index) => (
+        <View style={{ flexDirection: "row", justifyContent: "center", gap: 7 }} accessibilityLabel={`Chart ${chartIndex + 1} of 4`}>
+          {[0, 1, 2, 3].map((index) => (
             <View
               key={index}
               style={{
@@ -180,9 +193,28 @@ export default function AnalyticsScreen() {
 
       <Card>
         <SectionTitle title="Fuel summary" />
-        <Text style={{ color: colors.foreground, fontSize: 14 }}>Fuel spend: {php(fuelStats.totalCost)}</Text>
-        <Text style={{ color: colors.foreground, fontSize: 14 }}>Average price: {php(fuelStats.avgPricePerLiter)} / L</Text>
-        <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{fuelLogs.length} latest fuel entries · Odometer {bike ? km(bike.currentOdometer) : "not set"}</Text>
+        {fuelInsights ? (
+          <View style={{ gap: 6 }}>
+            <Text style={{ color: colors.foreground, fontSize: 14 }}>
+              Efficiency (full-to-full): {fuelInsights.avgKmPerLiter > 0 ? `${fuelInsights.avgKmPerLiter.toFixed(1)} km/L` : "—"}
+              {fuelInsights.bestSegment ? ` · best ${fuelInsights.bestSegment.kmL.toFixed(1)}` : ""}
+            </Text>
+            <Text style={{ color: colors.foreground, fontSize: 14 }}>
+              Tank range: {fuelInsights.tankRangeKm > 0 ? `~${Math.round(fuelInsights.tankRangeKm).toLocaleString()} km` : "—"} · Cost per km: {fuelInsights.costPerKm > 0 ? php(fuelInsights.costPerKm) : "—"}
+            </Text>
+            <Text style={{ color: colors.foreground, fontSize: 14 }}>
+              Refuels: {fuelInsights.refuelCount} · Avg {fuelInsights.avgLitersPerRefuel.toFixed(1)} L every {fuelInsights.avgDaysBetweenRefuels > 0 ? `${fuelInsights.avgDaysBetweenRefuels.toFixed(1)} days` : "—"}
+            </Text>
+            <Text style={{ color: colors.foreground, fontSize: 14 }}>
+              Fuel spend: {php(fuelInsights.totalCost)} · Avg price: {php(fuelInsights.avgPricePerLiter)} / L
+            </Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+              Partial fills are excluded from efficiency. · Odometer {bike ? km(bike.currentOdometer) : "not set"}
+            </Text>
+          </View>
+        ) : (
+          <Text style={{ color: colors.foreground, fontSize: 14 }}>Fuel spend: {php(fuelStats.totalCost)} · Avg price: {php(fuelStats.avgPricePerLiter)} / L</Text>
+        )}
       </Card>
     </Page>
   );

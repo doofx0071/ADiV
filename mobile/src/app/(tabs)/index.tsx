@@ -24,6 +24,7 @@ export default function DashboardScreen() {
   const items = useQuery(api.maintenance.getMaintenanceItems);
   const rideStats = useQuery(api.rides.getRideStats, {});
   const fuelStats = useQuery(api.fuel.getFuelStats, {});
+  const fuelInsights = useQuery(api.fuel.getFuelInsights, {});
   const maintenanceStats = useQuery(api.maintenance.getMaintenanceStats, {});
   const expenseStats = useQuery(api.expenses.getExpenseStats, {});
   const updateOdometer = useMutation(api.bike.updateOdometer);
@@ -93,7 +94,15 @@ export default function DashboardScreen() {
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         <StatCard label="RIDE DISTANCE" value={km(rideStats?.totalDistance ?? 0)} detail={`${rideStats?.totalRides ?? 0} rides`} />
-        <StatCard label="FUEL EFFICIENCY" value={`${(fuelStats?.avgKmPerLiter ?? 0).toFixed(1)} km/L`} detail={`${fuelStats?.logCount ?? 0} fuel-ups`} />
+        <StatCard
+          label="FUEL EFFICIENCY"
+          value={fuelInsights && fuelInsights.avgKmPerLiter > 0 ? `${fuelInsights.avgKmPerLiter.toFixed(1)} km/L` : "—"}
+          detail={
+            fuelInsights && fuelInsights.tankRangeKm > 0
+              ? `~${Math.round(fuelInsights.tankRangeKm).toLocaleString()} km range · ${fuelInsights.refuelCount} refuels`
+              : `${fuelStats?.logCount ?? 0} fuel-ups`
+          }
+        />
         <StatCard label="TOTAL SPENT" value={php(maintenanceStats.totalCost + expenseStats.totalAmount + fuelStats.totalCost)} detail={`${fuelStats.logCount} fuel · ${maintenanceStats.logCount} service · ${expenseStats.count} expenses`} />
         <StatCard label="SERVICE ITEMS" value={`${summary.overdue + summary.due}`} detail={`${summary.overdue} overdue · ${summary.needsHistory} need history`} />
       </View>
