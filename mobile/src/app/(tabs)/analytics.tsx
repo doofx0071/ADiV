@@ -80,6 +80,10 @@ export default function AnalyticsScreen() {
   const items = useQuery(api.maintenance.getMaintenanceItems);
   const { colors } = useAppTheme();
   const { width: screenWidth } = useWindowDimensions();
+  // The carousel lives inside Page's 18px horizontal padding, so each page
+  // must match the ScrollView viewport (screen minus both insets) or cards
+  // clip on the right and paging drifts.
+  const pageWidth = screenWidth - 36;
   const [chartIndex, setChartIndex] = useState(0);
 
   const monthly = useMemo(() => {
@@ -132,22 +136,22 @@ export default function AnalyticsScreen() {
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={(event) =>
-            setChartIndex(Math.round(event.nativeEvent.contentOffset.x / screenWidth))
+            setChartIndex(Math.round(event.nativeEvent.contentOffset.x / pageWidth))
           }
         >
-          <View style={{ width: screenWidth, paddingHorizontal: 18 }}>
+          <View style={{ width: pageWidth }}>
             <Card>
               <SectionTitle title="Ride distance · 6 months" />
               {monthly.map((entry) => <BarRow key={`ride-${entry.label}`} label={entry.label} value={entry.distance} max={monthlyDistanceMax} caption={km(entry.distance)} color={colors.primary} />)}
             </Card>
           </View>
-          <View style={{ width: screenWidth, paddingHorizontal: 18 }}>
+          <View style={{ width: pageWidth }}>
             <Card>
               <SectionTitle title="Spending · 6 months" />
               <SpendingTrend data={monthly} color={colors.warning} gridColor={colors.border} mutedColor={colors.mutedForeground} total={sixMonthSpend} />
             </Card>
           </View>
-          <View style={{ width: screenWidth, paddingHorizontal: 18 }}>
+          <View style={{ width: pageWidth }}>
             <Card>
               <SectionTitle title="Expenses by category" />
               {expenseCategories.length ? [...expenseCategories].sort((a, b) => b.amount - a.amount).map((entry) => <BarRow key={entry.category} label={entry.category} value={entry.amount} max={expenseMax} caption={`${php(entry.amount)} · ${entry.count}`} color={colors.primary} />) : <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>Expense categories appear after your first expense log.</Text>}

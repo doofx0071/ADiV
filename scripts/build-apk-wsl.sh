@@ -7,25 +7,25 @@
 #   ~/adiv-build/lib     (root lib: reminders, achievements, ...)
 #   ~/adiv-build/mobile  (the Expo app; node_modules reused across runs)
 #
+# Each run overlays the latest source (node_modules preserved), reconciles
+# deps with bun install, and re-runs expo prebuild so app.json changes
+# (version, versionCode) land in the generated android project.
+#
 # Requires: JDK 17, bun, Android SDK at ~/android-sdk.
 set -e
 
 REPO="/mnt/c/Users/Damascus/Documents/code ni cris/AdiV"
 BUILD="$HOME/adiv-build"
 
-mkdir -p "$BUILD"
+mkdir -p "$BUILD/mobile"
 
-# Reuse the prepared mobile tree (node_modules intact) from earlier runs
-if [ -d "$HOME/adiv-mobile" ] && [ ! -d "$BUILD/mobile" ]; then
-  mv "$HOME/adiv-mobile" "$BUILD/mobile"
-fi
-if [ ! -d "$BUILD/mobile" ]; then
-  mkdir -p "$BUILD/mobile"
-  tar -C "$REPO/mobile" --exclude=node_modules --exclude=.expo --exclude=builds --exclude=android -cf - . | tar -C "$BUILD/mobile" -xf -
-  cd "$BUILD/mobile"
-  echo "=== bun install..."
-  bun install > /tmp/bun-install.log 2>&1
-  echo "bun install OK"
+echo "=== Syncing latest mobile source (node_modules preserved)..."
+tar -C "$REPO/mobile" --exclude=node_modules --exclude=.expo --exclude=builds --exclude=android -cf - . | tar -C "$BUILD/mobile" -xf -
+
+if [ -f "$BUILD/mobile/.env.local" ]; then
+  echo ".env.local present (prod URL baked in)"
+else
+  echo "WARNING: .env.local missing - EXPO_PUBLIC_CONVEX_URL will not be set!"
 fi
 
 # Root backend + shared lib, laid out exactly like the repo so the
@@ -47,11 +47,13 @@ cd "$BUILD/mobile"
 export ANDROID_HOME="$HOME/android-sdk"
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
-if [ ! -d android ]; then
-  echo "=== expo prebuild -p android..."
-  bunx expo prebuild -p android --no-install > /tmp/prebuild.log 2>&1
-  echo "prebuild OK"
-fi
+echo "=== bun install (reconcile deps with lockfile)..."
+bun install > /tmp/bun-install.log 2>&1
+echo "bun install OK"
+
+echo "=== expo prebuild -p android (applies app.json changes)..."
+bunx expo prebuild -p android --no-install > /tmp/prebuild.log 2>&1
+echo "prebuild OK"
 
 echo "=== gradle assembleRelease (this takes a while)..."
 cd android
