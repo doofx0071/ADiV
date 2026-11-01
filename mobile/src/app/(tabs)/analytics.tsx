@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { View } from "react-native";
+import { useMemo, useState } from "react";
+import { ScrollView, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Line, Polyline } from "react-native-svg";
 import { AppText as Text } from "@/components/app-text";
 import { useQuery } from "convex/react";
@@ -79,6 +79,8 @@ export default function AnalyticsScreen() {
   const expenseStats = useQuery(api.expenses.getExpenseStats, {});
   const items = useQuery(api.maintenance.getMaintenanceItems);
   const { colors } = useAppTheme();
+  const { width: screenWidth } = useWindowDimensions();
+  const [chartIndex, setChartIndex] = useState(0);
 
   const monthly = useMemo(() => {
     const now = new Date();
@@ -123,20 +125,49 @@ export default function AnalyticsScreen() {
         <StatCard label="EXPENSES" value={php(expenseStats.totalAmount)} detail={`${expenseStats.count} expense logs`} />
       </View>
 
-      <Card>
-        <SectionTitle title="Ride distance · 6 months" />
-        {monthly.map((entry) => <BarRow key={`ride-${entry.label}`} label={entry.label} value={entry.distance} max={monthlyDistanceMax} caption={km(entry.distance)} color={colors.primary} />)}
-      </Card>
-
-      <Card>
-        <SectionTitle title="Spending · 6 months" />
-        <SpendingTrend data={monthly} color={colors.warning} gridColor={colors.border} mutedColor={colors.mutedForeground} total={sixMonthSpend} />
-      </Card>
-
-      <Card>
-        <SectionTitle title="Expenses by category" />
-        {expenseCategories.length ? [...expenseCategories].sort((a, b) => b.amount - a.amount).map((entry) => <BarRow key={entry.category} label={entry.category} value={entry.amount} max={expenseMax} caption={`${php(entry.amount)} · ${entry.count}`} color={colors.primary} />) : <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>Expense categories appear after your first expense log.</Text>}
-      </Card>
+      {/* Chart carousel: one card per page, swipe left/right */}
+      <View style={{ gap: 10 }}>
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={(event) =>
+            setChartIndex(Math.round(event.nativeEvent.contentOffset.x / screenWidth))
+          }
+        >
+          <View style={{ width: screenWidth, paddingHorizontal: 18 }}>
+            <Card>
+              <SectionTitle title="Ride distance · 6 months" />
+              {monthly.map((entry) => <BarRow key={`ride-${entry.label}`} label={entry.label} value={entry.distance} max={monthlyDistanceMax} caption={km(entry.distance)} color={colors.primary} />)}
+            </Card>
+          </View>
+          <View style={{ width: screenWidth, paddingHorizontal: 18 }}>
+            <Card>
+              <SectionTitle title="Spending · 6 months" />
+              <SpendingTrend data={monthly} color={colors.warning} gridColor={colors.border} mutedColor={colors.mutedForeground} total={sixMonthSpend} />
+            </Card>
+          </View>
+          <View style={{ width: screenWidth, paddingHorizontal: 18 }}>
+            <Card>
+              <SectionTitle title="Expenses by category" />
+              {expenseCategories.length ? [...expenseCategories].sort((a, b) => b.amount - a.amount).map((entry) => <BarRow key={entry.category} label={entry.category} value={entry.amount} max={expenseMax} caption={`${php(entry.amount)} · ${entry.count}`} color={colors.primary} />) : <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>Expense categories appear after your first expense log.</Text>}
+            </Card>
+          </View>
+        </ScrollView>
+        <View style={{ flexDirection: "row", justifyContent: "center", gap: 7 }} accessibilityLabel={`Chart ${chartIndex + 1} of 3`}>
+          {[0, 1, 2].map((index) => (
+            <View
+              key={index}
+              style={{
+                width: index === chartIndex ? 18 : 7,
+                height: 7,
+                borderRadius: 999,
+                backgroundColor: index === chartIndex ? colors.primary : colors.border,
+              }}
+            />
+          ))}
+        </View>
+      </View>
 
       <Card>
         <SectionTitle title="Maintenance costs by category" />
