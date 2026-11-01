@@ -8,6 +8,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/lib/api";
 import { evaluateMaintenanceItem, formatDueText } from "@/lib/shared";
 import { saveWidgetSnapshot } from "@/widgets/adiv-widget";
+import { pushWidgetUpdate } from "@/widgets/widget-update";
 
 const STATUS_COLORS: Record<string, `#${string}`> = {
   overdue: "#ff5a5f",
@@ -42,13 +43,19 @@ export function WidgetSync() {
     const mostUrgent = evaluated[0];
     if (!mostUrgent) return;
 
-    void saveWidgetSnapshot({
+    const snapshot = {
       odometerKm: bike.currentOdometer,
       itemName: mostUrgent.item.name,
       dueText: formatDueText(mostUrgent),
       statusColor: STATUS_COLORS[mostUrgent.status] ?? "#8b8b98",
       updatedAt: Date.now(),
-    }).catch(() => {});
+    } as const;
+    // Persist the snapshot AND push a redraw so the placed widget repaints
+    // immediately instead of waiting for Android's next update tick.
+    void (async () => {
+      await saveWidgetSnapshot(snapshot).catch(() => {});
+      await pushWidgetUpdate(snapshot);
+    })();
   }, [bike, items]);
 
   return null;

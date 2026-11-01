@@ -9,6 +9,12 @@ import { AdivWidget, readWidgetSnapshot } from "./adiv-widget";
 
 registerWidgetTaskHandler(async ({ widgetAction, renderWidget }) => {
   if (widgetAction === "WIDGET_DELETED") return;
-  const snapshot = await readWidgetSnapshot();
-  renderWidget(<AdivWidget snapshot={snapshot} />);
+  // Always render something — even a missing snapshot shows the branded
+  // placeholder so the widget never appears blank.
+  try {
+    const snapshot = await readWidgetSnapshot();
+    renderWidget(<AdivWidget snapshot={snapshot} />);
+  } catch {
+    renderWidget(<AdivWidget snapshot={null} />);
+  }
 });
