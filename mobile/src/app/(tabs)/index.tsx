@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { AppText as Text } from "@/components/app-text";
 import { router } from "expo-router";
 import { useMutation, useQuery } from "convex/react";
-import { Activity, ArrowRight, Camera, CircleDollarSign, Fuel, Plus, Route, Wrench, X } from "lucide-react-native";
+import { Activity, ArrowRight, Camera, CircleDollarSign, Disc, Fuel, Plus, Route, Wrench, X } from "lucide-react-native";
 import { api } from "@/lib/api";
 import { AppButton, Banner, Card, Field, LoadingState, Page, SectionTitle, StatCard, colorsForStatus } from "@/components/ui";
 import { evaluateMaintenanceItems, summarizeMaintenanceEvaluations } from "@/lib/shared";
@@ -113,6 +113,7 @@ export default function DashboardScreen() {
           {logRoutes.map(({ type, label, icon: Icon }) => (
             <AppButton key={type} label={label} onPress={() => router.push({ pathname: "/log/[type]", params: { type } })} compact variant="outline" icon={<Icon size={16} color={colors.primary} />} />
           ))}
+          <AppButton label="Record GPS" onPress={() => router.push("/record")} compact variant="outline" icon={<Disc size={16} color={colors.primary} />} />
         </View>
       </View>
 

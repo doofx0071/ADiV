@@ -58,6 +58,8 @@ function Navigator() {
         <Stack.Screen name="log/[type]" />
         <Stack.Screen name="history/edit" />
         <Stack.Screen name="rides" />
+        <Stack.Screen name="expenses" />
+        <Stack.Screen name="record" />
         <Stack.Screen name="gallery" />
         <Stack.Screen name="achievements" />
         <Stack.Screen name="export" />

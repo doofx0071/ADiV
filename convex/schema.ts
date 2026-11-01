@@ -83,6 +83,13 @@ export default defineSchema({
     startAt: v.optional(v.number()),
     endAt: v.optional(v.number()),
     durationMinutes: v.number(),
+    // GPS-tracked rides: encoded Google polyline of the recorded track,
+    // GPS-measured distance in km (distance mirrors it at save time), and
+    // the max speed observed. Absent = manually logged ride.
+    source: v.optional(v.string()),
+    route: v.optional(v.string()),
+    trackedDistance: v.optional(v.number()),
+    maxSpeedKmh: v.optional(v.number()),
     notes: v.optional(v.string()),
   }).index("by_date", ["date"]),
 

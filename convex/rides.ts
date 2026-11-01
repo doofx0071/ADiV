@@ -19,6 +19,10 @@ export const getRides = query({
       startAt: v.optional(v.number()),
       endAt: v.optional(v.number()),
       durationMinutes: v.number(),
+      source: v.optional(v.string()),
+      route: v.optional(v.string()),
+      trackedDistance: v.optional(v.number()),
+      maxSpeedKmh: v.optional(v.number()),
       notes: v.optional(v.string()),
     })
   ),
@@ -65,6 +69,12 @@ export const logRide = mutation({
     durationMinutes: v.optional(v.number()),
     startAt: v.optional(v.number()),
     endAt: v.optional(v.number()),
+    // GPS-tracked rides: "gps" source, encoded polyline of the track, the
+    // GPS-measured distance, and the observed max speed.
+    source: v.optional(v.string()),
+    route: v.optional(v.string()),
+    trackedDistance: v.optional(v.number()),
+    maxSpeedKmh: v.optional(v.number()),
     notes: v.optional(v.string()),
   },
   returns: v.id("rides"),
@@ -77,6 +87,12 @@ export const logRide = mutation({
     }
     if (args.date > Date.now()) {
       throw new Error("Ride date cannot be in the future");
+    }
+    if (args.trackedDistance !== undefined && (!Number.isFinite(args.trackedDistance) || args.trackedDistance < 0)) {
+      throw new Error("Tracked distance must be a non-negative number.");
+    }
+    if (args.route !== undefined && args.route.length > 1_000_000) {
+      throw new Error("Recorded route is too large to save.");
     }
 
     const hasStartAt = args.startAt !== undefined;
@@ -97,7 +113,11 @@ export const logRide = mutation({
       throw new Error("Ride duration must be between 1 minute and 24 hours.");
     }
 
-    const distance = args.endOdometer - args.startOdometer;
+    // GPS rides trust the measured track for distance; manual rides derive
+    // it from the odometer pair.
+    const isTracked = args.source === "gps" && args.trackedDistance !== undefined;
+    const distance = isTracked ? args.trackedDistance! : args.endOdometer - args.startOdometer;
+
     const ride = {
       startOdometer: args.startOdometer,
       endOdometer: args.endOdometer,
@@ -105,6 +125,10 @@ export const logRide = mutation({
       date: args.date,
       durationMinutes,
       notes: args.notes,
+      ...(args.source !== undefined ? { source: args.source } : {}),
+      ...(args.route !== undefined ? { route: args.route } : {}),
+      ...(args.trackedDistance !== undefined ? { trackedDistance: args.trackedDistance } : {}),
+      ...(args.maxSpeedKmh !== undefined ? { maxSpeedKmh: args.maxSpeedKmh } : {}),
       ...(args.startAt !== undefined ? { startAt: args.startAt } : {}),
       ...(args.endAt !== undefined ? { endAt: args.endAt } : {}),
     };
@@ -157,7 +181,11 @@ export const updateRide = mutation({
     const updates: Partial<typeof ride> = {};
     if (args.startOdometer !== undefined) updates.startOdometer = startOdometer;
     if (args.endOdometer !== undefined) updates.endOdometer = endOdometer;
-    if (args.startOdometer !== undefined || args.endOdometer !== undefined) updates.distance = endOdometer - startOdometer;
+    // GPS rides keep their measured distance — odometer edits must not
+    // clobber the recorded track.
+    if (!ride.route && (args.startOdometer !== undefined || args.endOdometer !== undefined)) {
+      updates.distance = endOdometer - startOdometer;
+    }
     if (args.date !== undefined) updates.date = args.date;
     if (args.startAt !== undefined && args.endAt !== undefined) {
       if (!Number.isFinite(startAt) || !Number.isFinite(endAt) || endAt! <= startAt!) {
