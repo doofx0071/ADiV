@@ -1,18 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Platform, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
+import { Alert, Platform, Pressable, TextInput, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router } from "expo-router";
 import { useMutation, useQuery } from "convex/react";
 import { Map as MapView, Camera, GeoJSONSource, Layer, UserLocation } from "@maplibre/maplibre-react-native";
 import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
-import { Disc, Flag, Navigation, Square } from "lucide-react-native";
+import { Disc, Flag, MapPin, Navigation, Search, Square, X } from "lucide-react-native";
 import { api } from "@/lib/api";
 import { AppButton, Banner, Field, LoadingState, Page, StatCard } from "@/components/ui";
-import { km, php } from "@/lib/format";
+import { km } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
 import { OSM_STYLE, ROUTE_LINE_PAINT, boundsFor, routeFeatureCollection } from "@/lib/map-style";
 import { encodePolyline, trackDistanceKm, type TrackPoint } from "@/lib/shared";
+import { searchPlaces, type PlaceResult } from "@/lib/geocode";
 import { metersToStep, planRoute, SPEAK_DISTANCE_METERS, type PlannedRoute } from "@/lib/navigation";
 import {
   clearActiveRide,
@@ -54,13 +55,18 @@ export default function RecordScreen() {
   const [startOdometerInput, setStartOdometerInput] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Guided navigation: long-press the map to plan a route, voice callouts
-  // announce maneuvers as you approach them.
+  // Guided navigation: search or pin a destination, plan a route, voice
+  // callouts announce maneuvers as you approach them.
   const [planning, setPlanning] = useState(false);
   const [destination, setDestination] = useState<[number, number] | null>(null);
   const [planned, setPlanned] = useState<PlannedRoute | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [pinMode, setPinMode] = useState(false);
+  const mapRef = useRef<ComponentRef<typeof MapView>>(null);
 
   // The tracker buffer is module-level; mirror it into state for rendering.
   const pointsRef = useRef<TrackPoint[]>([]);
@@ -123,32 +129,63 @@ export default function RecordScreen() {
     };
   }, [planned]);
 
+  const choosePlace = useCallback(async (place: PlaceResult) => {
+    setSearchResults([]);
+    setDestination([place.lon, place.lat]);
+    setRouteLoading(true);
+    setError("");
+    try {
+      const last = pointsRef.current[pointsRef.current.length - 1];
+      const from = last ? ([last.lon, last.lat] as [number, number]) : await currentPosition();
+      if (!from) {
+        setError("No GPS fix yet — step outside and try again.");
+        return;
+      }
+      const route = await planRoute(from, [place.lon, place.lat]);
+      setPlanned(route);
+      setStepIndex(0);
+    } catch (e) {
+      setPlanned(null);
+      setError(e instanceof Error ? e.message : "Could not plan the route.");
+    } finally {
+      setRouteLoading(false);
+    }
+  }, []);
+
   const handleLongPress = useCallback(
     async (event: { nativeEvent: { lngLat: [number, number] } }) => {
       if (!planning || phase === "recording") return;
       const to = event.nativeEvent.lngLat;
-      setDestination(to);
-      setRouteLoading(true);
-      setError("");
-      try {
-        const last = pointsRef.current[pointsRef.current.length - 1];
-        const from = last ? ([last.lon, last.lat] as [number, number]) : await currentPosition();
-        if (!from) {
-          setError("No GPS fix yet — step outside and try again.");
-          return;
-        }
-        const route = await planRoute(from, to);
-        setPlanned(route);
-        setStepIndex(0);
-      } catch (e) {
-        setPlanned(null);
-        setError(e instanceof Error ? e.message : "Could not plan the route.");
-      } finally {
-        setRouteLoading(false);
-      }
+      await choosePlace({ label: "Pinned destination", lat: to[1], lon: to[0] });
     },
-    [planning, phase],
+    [planning, phase, choosePlace],
   );
+
+  const handleSearch = useCallback(async (query: string) => {
+    setSearchQuery(query);
+    if (query.trim().length < 3) {
+      setSearchResults([]);
+      return;
+    }
+    setSearching(true);
+    try {
+      setSearchResults(await searchPlaces(query));
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  const handlePinHere = useCallback(async () => {
+    const center = await mapRef.current?.getCenter();
+    if (!center) {
+      setError("The map is still loading — try again in a moment.");
+      return;
+    }
+    setPinMode(false);
+    await choosePlace({ label: "Pinned destination", lat: center[1], lon: center[0] });
+  }, []);
 
   // Voice callouts: announce the next maneuver when close enough to it.
   useEffect(() => {
@@ -281,37 +318,131 @@ export default function RecordScreen() {
         </View>
       ) : null}
 
-      {points.length >= 2 ? (
-        <View style={{ height: 280, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
-          <MapView
-            mapStyle={OSM_STYLE}
-            style={{ flex: 1 }}
-            onLongPress={planning && phase !== "recording" ? (event) => void handleLongPress(event) : undefined}
-          >
-            {recording ? (
-              <Camera trackUserLocation="default" zoom={16} />
-            ) : (
-              <Camera
-                bounds={boundsFor(points.map((p) => [p.lon, p.lat]))}
-                padding={{ top: 40, right: 40, bottom: 40, left: 40 }}
+      {/* Map is always visible — you should see where you are before you ride. */}
+      <View style={{ height: 320, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+        <MapView
+          ref={mapRef}
+          mapStyle={OSM_STYLE}
+          style={{ flex: 1 }}
+          onLongPress={planning && phase !== "recording" ? (event) => void handleLongPress(event) : undefined}
+        >
+          {recording ? (
+            <Camera trackUserLocation="default" zoom={16} />
+          ) : points.length >= 2 ? (
+            <Camera
+              bounds={boundsFor(points.map((p) => [p.lon, p.lat]))}
+              padding={{ top: 40, right: 40, bottom: 40, left: 40 }}
+            />
+          ) : (
+            <Camera trackUserLocation="default" zoom={15} />
+          )}
+          <GeoJSONSource id="routeSource" data={routeGeoJSON}>
+            <Layer id="routeLine" type="line" paint={ROUTE_LINE_PAINT} />
+          </GeoJSONSource>
+          {planned ? (
+            <GeoJSONSource id="plannedSource" data={plannedGeoJSON}>
+              <Layer
+                id="plannedLine"
+                type="line"
+                paint={{ "line-color": "#f59e0b", "line-width": 4, "line-dasharray": [2, 2] }}
               />
-            )}
-            <GeoJSONSource id="routeSource" data={routeGeoJSON}>
-              <Layer id="routeLine" type="line" paint={ROUTE_LINE_PAINT} />
             </GeoJSONSource>
-            {planned ? (
-              <GeoJSONSource id="plannedSource" data={plannedGeoJSON}>
-                <Layer
-                  id="plannedLine"
-                  type="line"
-                  paint={{ "line-color": "#f59e0b", "line-width": 4, "line-dasharray": [2, 2] }}
-                />
-              </GeoJSONSource>
-            ) : null}
-            {recording ? <UserLocation /> : null}
-          </MapView>
-        </View>
-      ) : null}
+          ) : null}
+          {destination ? (
+            <GeoJSONSource
+              id="destinationSource"
+              data={{
+                type: "FeatureCollection",
+                features: [
+                  {
+                    type: "Feature",
+                    properties: {},
+                    geometry: { type: "Point", coordinates: destination },
+                  },
+                ],
+              }}
+            >
+              <Layer
+                id="destinationPin"
+                type="circle"
+                paint={{
+                  "circle-radius": 8,
+                  "circle-color": "#f59e0b",
+                  "circle-stroke-width": 3,
+                  "circle-stroke-color": "#ffffff",
+                }}
+              />
+            </GeoJSONSource>
+          ) : null}
+          <UserLocation />
+        </MapView>
+
+        {/* Destination search overlay while planning */}
+        {planning && phase !== "recording" ? (
+          <View style={{ position: "absolute", top: 10, left: 10, right: 10, gap: 4 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                backgroundColor: colors.card,
+                borderWidth: 1,
+                borderColor: colors.border,
+                paddingHorizontal: 10,
+              }}
+            >
+              <Search size={16} color={colors.mutedForeground} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={(value) => void handleSearch(value)}
+                placeholder={pinMode ? "Pin mode — position the map, then confirm" : "Where to? Search a place…"}
+                placeholderTextColor={colors.mutedForeground}
+                style={{ flex: 1, height: 44, color: colors.foreground }}
+                autoCorrect={false}
+              />
+              {searchQuery ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                  onPress={() => {
+                    setSearchQuery("");
+                    setSearchResults([]);
+                  }}
+                >
+                  <X size={16} color={colors.mutedForeground} />
+                </Pressable>
+              ) : null}
+            </View>
+            {searchResults.map((result) => (
+              <Pressable
+                key={`${result.lat}-${result.lon}`}
+                accessibilityRole="button"
+                onPress={() => void choosePlace(result)}
+                style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, padding: 12 }}
+              >
+                <Text style={{ color: colors.foreground, fontSize: 13 }} numberOfLines={1}>
+                  {result.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
+        {/* Pin mode crosshair + confirm */}
+        {planning && pinMode ? (
+          <>
+            <View
+              pointerEvents="none"
+              style={{ position: "absolute", top: "50%", left: "50%", marginTop: -16, marginLeft: -16 }}
+            >
+              <MapPin size={32} color="#e62025" />
+            </View>
+            <View style={{ position: "absolute", bottom: 14, left: 10, right: 10 }}>
+              <AppButton label="Set destination here" onPress={() => void handlePinHere()} icon={<MapPin size={17} color="#ffffff" />} />
+            </View>
+          </>
+        ) : null}
+      </View>
 
       {phase === "idle" ? (
         <>
@@ -338,11 +469,19 @@ export default function RecordScreen() {
                 icon={<Navigation size={16} color={colors.primary} />}
               />
               {planning ? (
-                <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 19 }}>
-                  {destination
-                    ? "Long-press again to move the destination."
-                    : "Long-press the map to drop a destination — the route is planned over free OSRM routing."}
-                </Text>
+                <>
+                  <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 19 }}>
+                    {destination
+                      ? "Long-press again or search to move the destination."
+                      : "Search a place, long-press the map, or pin the map center — then start your guided ride."}
+                  </Text>
+                  <AppButton
+                    label={pinMode ? "Exit pin mode" : "Pin on map"}
+                    variant="outline"
+                    onPress={() => setPinMode(!pinMode)}
+                    icon={<MapPin size={16} color={colors.primary} />}
+                  />
+                </>
               ) : null}
               {routeLoading ? <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>Planning route…</Text> : null}
               {planned ? (
