@@ -1,19 +1,15 @@
-import { useRef, useState, type ComponentRef } from "react";
-import { Alert, Modal, Pressable, View } from "react-native";
+import { useState } from "react";
+import { Alert, Pressable, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router } from "expo-router";
 import { useMutation, useQuery } from "convex/react";
-import { Map as MapView, Camera, GeoJSONSource, Layer } from "@maplibre/maplibre-react-native";
-import { captureRef } from "react-native-view-shot";
-import * as Sharing from "expo-sharing";
-import { Disc, Pencil, Share, Trash2, X } from "lucide-react-native";
+import { Disc, Pencil, Trash2 } from "lucide-react-native";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { api, type Id } from "@/lib/api";
 import { AppButton, Card, EmptyState, LoadingState, Page, SectionTitle } from "@/components/ui";
+import { ShareStudio } from "@/components/share-studio";
 import { dateLabel, km, rideTimeLabel } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
-import { decodePolyline } from "@/lib/shared";
-import { OSM_STYLE, ROUTE_LINE_PAINT, boundsFor, routeFeatureCollection } from "@/lib/map-style";
 
 interface RouteView {
   route: string;
@@ -28,22 +24,7 @@ export default function RidesScreen() {
   const deleteRide = useMutation(api.rides.deleteRide);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [routeView, setRouteView] = useState<RouteView | null>(null);
-  const [sharing, setSharing] = useState(false);
-  const shareCardRef = useRef<ComponentRef<typeof View>>(null);
   const { colors } = useAppTheme();
-
-  async function handleShareCard() {
-    if (!shareCardRef.current) return;
-    setSharing(true);
-    try {
-      const uri = await captureRef(shareCardRef, { format: "png", quality: 1 });
-      await Sharing.shareAsync(uri, { mimeType: "image/png", dialogTitle: "Share your ride" });
-    } catch {
-      Alert.alert("Could not share", "Try again in a moment.");
-    } finally {
-      setSharing(false);
-    }
-  }
 
   function confirmDelete(rideId: string) {
     Alert.alert("Delete this ride?", "This action cannot be undone.", [
@@ -146,42 +127,14 @@ export default function RidesScreen() {
       {rides.length === 0 ? <EmptyState title="No rides yet" body="Record a GPS ride or log one manually to start building your riding history." action={<AppButton label="Log your first ride" onPress={() => router.push({ pathname: "/log/[type]", params: { type: "ride" } })} />} /> : null}
 
       {routeView ? (
-        <Modal visible animationType="fade" transparent onRequestClose={() => setRouteView(null)}>
-          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.94)", padding: 14, justifyContent: "center" }}>
-            <View ref={shareCardRef} collapsable={false} style={{ backgroundColor: "#0a0a0f", overflow: "hidden" }}>
-              <View style={{ height: 300 }}>
-                <MapView mapStyle={OSM_STYLE} style={{ flex: 1 }}>
-                  <Camera bounds={boundsFor(decodePolyline(routeView.route))} padding={{ top: 36, right: 36, bottom: 36, left: 36 }} />
-                  <GeoJSONSource id="sharedRoute" data={routeFeatureCollection([decodePolyline(routeView.route)])}>
-                    <Layer id="sharedRouteLine" type="line" paint={ROUTE_LINE_PAINT} />
-                  </GeoJSONSource>
-                </MapView>
-              </View>
-              <View style={{ padding: 14, gap: 6 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text style={{ color: "#e62025", fontWeight: "900", fontSize: 14, letterSpacing: 2 }}>ADIV</Text>
-                  <Text style={{ color: "#8b8b98", fontSize: 12 }}>{dateLabel(routeView.date)}</Text>
-                </View>
-                <Text style={{ color: "#ffffff", fontWeight: "800", fontSize: 15 }} numberOfLines={1}>{routeView.title}</Text>
-                <View style={{ flexDirection: "row", gap: 16 }}>
-                  <Text style={{ color: "#ffffff", fontWeight: "900", fontSize: 20 }}>{km(routeView.distanceKm)}</Text>
-                  <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 20 }}>{routeView.durationMinutes} min</Text>
-                  <Text style={{ color: "#e62025", fontWeight: "900", fontSize: 20 }}>
-                    {routeView.durationMinutes > 0 ? `${((routeView.distanceKm / routeView.durationMinutes) * 60).toFixed(1)} km/h` : "—"}
-                  </Text>
-                </View>
-              </View>
-            </View>
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-              <View style={{ flex: 1 }}>
-                <AppButton label={sharing ? "Preparing…" : "Share"} onPress={() => void handleShareCard()} busy={sharing} icon={<Share size={17} color="#ffffff" />} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <AppButton label="Close" variant="secondary" onPress={() => setRouteView(null)} icon={<X size={17} color="#ffffff" />} />
-              </View>
-            </View>
-          </View>
-        </Modal>
+        <ShareStudio
+          route={routeView.route}
+          title={routeView.title}
+          date={routeView.date}
+          distanceKm={routeView.distanceKm}
+          durationMinutes={routeView.durationMinutes}
+          onClose={() => setRouteView(null)}
+        />
       ) : null}
     </Page>
   );
