@@ -16,7 +16,7 @@ import Svg, { Polyline } from "react-native-svg";
 import { AppButton } from "@/components/ui";
 import { dateLabel, km } from "@/lib/format";
 import { decodePolyline } from "@/lib/shared";
-import { OSM_STYLE, ROUTE_LINE_PAINT, boundsFor, projectToPath, routeFeatureCollection } from "@/lib/map-style";
+import { getMapStyle, ROUTE_LINE_PAINT, boundsFor, projectToPath, routeFeatureCollection } from "@/lib/map-style";
 
 export interface ShareStudioProps {
   route: string;
@@ -97,7 +97,7 @@ export function ShareStudio({ route, title, date, distanceKm, durationMinutes, o
     if (key === "map") {
       return (
         <View style={{ height: CARD_HEIGHT, backgroundColor: DARK }}>
-          <MapView mapStyle={OSM_STYLE} style={{ flex: 1 }}>
+          <MapView mapStyle={getMapStyle("light")} style={{ flex: 1 }}>
             <Camera bounds={boundsFor(coordinates)} padding={{ top: 40, right: 40, bottom: 40, left: 40 }} />
             <GeoJSONSource id="studioRoute" data={routeFeatureCollection([coordinates])}>
               <Layer id="studioRouteLine" type="line" paint={ROUTE_LINE_PAINT} />

@@ -2,9 +2,12 @@
   "name": "adiv",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["mobile"],
+  "workspaces": [
+    "mobile"
+  ],
   "scripts": {
     "dev": "next dev",
+    "mobile": "cd mobile && bunx expo start --dev-client",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

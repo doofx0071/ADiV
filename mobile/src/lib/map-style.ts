@@ -1,20 +1,22 @@
 /**
- * Shared MapLibre bits for the ride recorder and route views: the free
- * OpenStreetMap raster style (no API key) plus small GeoJSON/bounds helpers.
+ * Shared MapLibre bits for the ride recorder and route views.
+ *
+ * Basemap: CARTO's free GL styles (built on OpenStreetMap data, ~5M free
+ * requests/month, no API key for the public style URLs). Do NOT use
+ * tile.openstreetmap.org directly — it 403-blocks native apps with default
+ * user-agents, which shows up as a blank blue map.
  */
 
-export const OSM_STYLE = {
-  version: 8 as const,
-  sources: {
-    osm: {
-      type: "raster" as const,
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors",
-    },
-  },
-  layers: [{ id: "osm", type: "raster" as const, source: "osm" }],
+export type MapBasemap = "light" | "dark";
+
+const CARTO_STYLES: Record<MapBasemap, string> = {
+  light: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+  dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
 };
+
+export function getMapStyle(basemap: MapBasemap): string {
+  return CARTO_STYLES[basemap];
+}
 
 export const ROUTE_LINE_PAINT = { "line-color": "#e62025", "line-width": 4 };
 

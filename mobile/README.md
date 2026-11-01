@@ -26,3 +26,16 @@ Run `bun run apk:preview` or `bunx eas-cli build --platform android --profile pr
 - Six-month insights and expense/service category summaries
 - Achievements, maintenance photo gallery, JSON backup, and per-domain CSV exports
 - Device-local daily maintenance reminder and light/dark/system appearance preference
+
+## Debugging the home-screen widget
+
+The widget renders through a headless task. To see it work:
+
+1. Connect the phone over USB (USB debugging on) and run:
+   `adb logcat -s ReactNativeJS`
+2. Place the widget (or hold it → resize). You should see
+   `[widget] task: WIDGET_ADDED ...` and `[widget] snapshot: loaded`.
+3. Open the app once — WidgetSync also pushes an update on every data sync.
+
+If `[widget] task:` never appears, the headless task isn't booting; if it
+appears with `snapshot: none`, open the app once so it writes data.

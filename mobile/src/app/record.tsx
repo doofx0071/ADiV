@@ -11,7 +11,7 @@ import { api } from "@/lib/api";
 import { AppButton, Banner, Field, LoadingState, Page, StatCard } from "@/components/ui";
 import { km } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
-import { OSM_STYLE, ROUTE_LINE_PAINT, boundsFor, routeFeatureCollection } from "@/lib/map-style";
+import { getMapStyle, ROUTE_LINE_PAINT, boundsFor, routeFeatureCollection } from "@/lib/map-style";
 import { encodePolyline, trackDistanceKm, type TrackPoint } from "@/lib/shared";
 import { searchPlaces, type PlaceResult } from "@/lib/geocode";
 import { metersToStep, planRoute, SPEAK_DISTANCE_METERS, type PlannedRoute } from "@/lib/navigation";
@@ -42,7 +42,7 @@ function runsOf(points: TrackPoint[]): Map<number, [number, number][]> {
 }
 
 export default function RecordScreen() {
-  const { colors } = useAppTheme();
+  const { colors, resolved } = useAppTheme();
   const bike = useQuery(api.bike.getBike);
   const logRide = useMutation(api.rides.logRide);
 
@@ -322,7 +322,7 @@ export default function RecordScreen() {
       <View style={{ height: 320, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
         <MapView
           ref={mapRef}
-          mapStyle={OSM_STYLE}
+          mapStyle={getMapStyle(resolved === "dark" ? "dark" : "light")}
           style={{ flex: 1 }}
           onLongPress={planning && phase !== "recording" ? (event) => void handleLongPress(event) : undefined}
         >
