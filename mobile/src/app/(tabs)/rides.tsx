@@ -6,10 +6,10 @@ import { useMutation, useQuery } from "convex/react";
 import { Map as MapView, Camera, GeoJSONSource, Layer } from "@maplibre/maplibre-react-native";
 import { captureRef } from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
-import { Pencil, Plus, Share, Trash2, X } from "lucide-react-native";
+import { Disc, Pencil, Share, Trash2, X } from "lucide-react-native";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { api, type Id } from "@/lib/api";
-import { AppButton, Card, EmptyState, LoadingState, Page } from "@/components/ui";
+import { AppButton, Card, EmptyState, LoadingState, Page, SectionTitle } from "@/components/ui";
 import { dateLabel, km, rideTimeLabel } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
 import { decodePolyline } from "@/lib/shared";
@@ -57,11 +57,36 @@ export default function RidesScreen() {
     ]);
   }
 
-  if (rides === undefined) return <Page back><LoadingState label="Loading rides…" /></Page>;
+  if (rides === undefined) return <Page><LoadingState label="Loading rides…" /></Page>;
 
   return (
-    <Page back eyebrow="Your records" title="Rides" subtitle={`${rides.length} rides logged`}>
-      <AppButton label="Log a ride" onPress={() => router.push({ pathname: "/log/[type]", params: { type: "ride" } })} icon={<Plus size={17} color="#ffffff" />} />
+    <Page eyebrow="Your rides" title="Rides" subtitle={`${rides.length} ${rides.length === 1 ? "ride" : "rides"} logged`}>
+      {/* Ride hub: live GPS recording front and center */}
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        <View style={{ padding: 16, gap: 10 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <View style={{ width: 42, height: 42, borderRadius: 0, alignItems: "center", justifyContent: "center", backgroundColor: `${colors.primary}14` }}>
+              <Disc size={20} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ color: colors.foreground, fontWeight: "900", fontSize: 16 }}>Record a GPS ride</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Background tracking · voice turns · route on a map</Text>
+            </View>
+          </View>
+          <AppButton label="Start recording" onPress={() => router.push("/record")} icon={<Disc size={17} color="#ffffff" />} />
+          <AppButton
+            label="Log manually instead"
+            variant="outline"
+            onPress={() => router.push({ pathname: "/log/[type]", params: { type: "ride" } })}
+            icon={<Pencil size={16} color={colors.primary} />}
+          />
+          <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+            Forgot to record, or low battery? Log the ride manually and the odometer still syncs.
+          </Text>
+        </View>
+      </Card>
+
+      <SectionTitle title="All rides" />
       <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Swipe left to edit · swipe right to delete</Text>
       {rides.map((ride) => (
         <ReanimatedSwipeable
@@ -118,7 +143,7 @@ export default function RidesScreen() {
           </Card>
         </ReanimatedSwipeable>
       ))}
-      {rides.length === 0 ? <EmptyState title="No rides yet" body="Log a ride to start building your riding history." action={<AppButton label="Log your first ride" onPress={() => router.push({ pathname: "/log/[type]", params: { type: "ride" } })} />} /> : null}
+      {rides.length === 0 ? <EmptyState title="No rides yet" body="Record a GPS ride or log one manually to start building your riding history." action={<AppButton label="Log your first ride" onPress={() => router.push({ pathname: "/log/[type]", params: { type: "ride" } })} />} /> : null}
 
       {routeView ? (
         <Modal visible animationType="fade" transparent onRequestClose={() => setRouteView(null)}>

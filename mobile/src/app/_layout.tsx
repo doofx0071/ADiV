@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { ConvexProvider } from "convex/react";
-import { Stack, router } from "expo-router";
+import { Stack, router, useSegments } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -13,8 +13,10 @@ import {
   Geist_900Black,
 } from "@expo-google-fonts/geist";
 import { Platform, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AppText as Text } from "@/components/app-text";
+import { BrandHeader } from "@/components/brand-header";
 import { AppThemeProvider, useAppTheme } from "@/lib/theme";
 import { convexClient } from "@/lib/convex";
 import { configureNotificationHandler, subscribeToMaintenanceNotification } from "@/lib/notification-api";
@@ -43,6 +45,11 @@ function ConfigRequired() {
 
 function Navigator() {
   const { resolved } = useAppTheme();
+  const segments = useSegments();
+  // The brand header is persistent: pages transition beneath it instead of
+  // carrying it. Setup is the one screen that runs headerless.
+  const isSetup = segments[segments.length - 1] === "setup";
+
   useEffect(() => {
     const subscription = subscribeToMaintenanceNotification(() => router.push("/(tabs)/maintenance"));
     return () => subscription.remove();
@@ -53,21 +60,27 @@ function Navigator() {
       <StatusBar style={resolved === "dark" ? "light" : "dark"} />
       {Platform.OS !== "web" ? <NotificationSync /> : null}
       {Platform.OS !== "web" ? <WidgetSync /> : null}
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: resolved === "dark" ? "#0a0a0f" : "#f8fafc" } }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="setup" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="maintenance/[id]" />
-        <Stack.Screen name="maintenance/edit" />
-        <Stack.Screen name="log/[type]" />
-        <Stack.Screen name="history/edit" />
-        <Stack.Screen name="rides" />
-        <Stack.Screen name="expenses" />
-        <Stack.Screen name="record" />
-        <Stack.Screen name="gallery" />
-        <Stack.Screen name="achievements" />
-        <Stack.Screen name="export" />
-      </Stack>
+      <SafeAreaView
+        edges={["top"]}
+        style={{ flex: 1, backgroundColor: resolved === "dark" ? "#0a0a0f" : "#f8fafc" }}
+      >
+        {!isSetup && Platform.OS !== "web" ? <BrandHeader /> : null}
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: resolved === "dark" ? "#0a0a0f" : "#f8fafc" } }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="setup" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="maintenance/[id]" />
+          <Stack.Screen name="maintenance/edit" />
+          <Stack.Screen name="log/[type]" />
+          <Stack.Screen name="history/edit" />
+          <Stack.Screen name="rides" />
+          <Stack.Screen name="expenses" />
+          <Stack.Screen name="record" />
+          <Stack.Screen name="gallery" />
+          <Stack.Screen name="achievements" />
+          <Stack.Screen name="export" />
+        </Stack>
+      </SafeAreaView>
     </>
   );
 }

@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppText as Text } from "@/components/app-text";
-import { BrandHeader } from "@/components/brand-header";
 import { useAppTheme, type AppColors } from "@/lib/theme";
 
 export function Page({
@@ -23,7 +22,6 @@ export function Page({
   scroll = true,
   back = false,
   right,
-  showBrandHeader = true,
 }: React.PropsWithChildren<{
   title?: string;
   subtitle?: string;
@@ -31,7 +29,6 @@ export function Page({
   scroll?: boolean;
   back?: boolean;
   right?: React.ReactNode;
-  showBrandHeader?: boolean;
 }>) {
   const { colors } = useAppTheme();
   const body = (
@@ -61,8 +58,9 @@ export function Page({
   );
 
   return (
-    <SafeAreaView edges={["top"]} style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      {showBrandHeader ? <BrandHeader /> : null}
+    // Top edge is owned by the root layout's persistent brand header —
+    // pages transition beneath it without the header animating.
+    <SafeAreaView edges={["left", "right"]} style={[styles.safeArea, { backgroundColor: colors.background }]}>
       {scroll ? (
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           {body}

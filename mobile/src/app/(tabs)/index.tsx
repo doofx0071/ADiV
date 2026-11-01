@@ -108,7 +108,7 @@ export default function DashboardScreen() {
       </View>
 
       <View style={{ gap: 11 }}>
-        <SectionTitle title="Quick log" action={<Pressable accessibilityRole="button" onPress={() => router.push("/rides")}><Text style={{ color: colors.primary, fontWeight: "800" }}>View rides</Text></Pressable>} />
+        <SectionTitle title="Quick log" action={<Pressable accessibilityRole="button" onPress={() => router.push("/(tabs)/rides")}><Text style={{ color: colors.primary, fontWeight: "800" }}>View rides</Text></Pressable>} />
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           {logRoutes.map(({ type, label, icon: Icon }) => (
             <AppButton key={type} label={label} onPress={() => router.push({ pathname: "/log/[type]", params: { type } })} compact variant="outline" icon={<Icon size={16} color={colors.primary} />} />

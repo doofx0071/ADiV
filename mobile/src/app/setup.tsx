@@ -63,7 +63,7 @@ export default function SetupScreen() {
   }
 
   return (
-    <Page showBrandHeader={false} eyebrow="First-time setup" title="Set up your ADV160" subtitle="This profile is shared with your AdiV web app and uses the same single-bike Convex data." >
+    <Page eyebrow="First-time setup" title="Set up your ADV160" subtitle="This profile is shared with your AdiV web app and uses the same single-bike Convex data." >
       <Card>
         <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}><Bike size={19} color={colors.primary} /><Text style={{ color: colors.foreground, fontWeight: "900", fontSize: 17 }}>Bike details</Text></View>
         <Field label="Bike name *" value={profile.name} onChangeText={(v) => update("name", v)} placeholder="My ADV160" />
