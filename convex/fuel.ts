@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { computeFuelInsights, type FuelLogInput } from "../lib/fuel-insights";
 
 /**
  * Query all fuel logs ordered by date desc.
@@ -17,6 +18,7 @@ export const getFuelLogs = query({
       pricePerLiter: v.number(),
       totalPrice: v.number(),
       date: v.number(),
+      fullTank: v.optional(v.boolean()),
       stationName: v.optional(v.string()),
       notes: v.optional(v.string()),
     })
@@ -33,6 +35,10 @@ export const getFuelLogs = query({
 
 /**
  * Get fuel efficiency stats.
+ *
+ * avgKmPerLiter uses the filled-to-full method (lib/fuel-insights.ts): only
+ * full→full windows count, partial fills merge into the closing segment, and
+ * logs are paired in date order.
  */
 export const getFuelStats = query({
   args: {},
@@ -44,41 +50,92 @@ export const getFuelStats = query({
     logCount: v.number(),
   }),
   handler: async (ctx) => {
-    const logs = await ctx.db.query("fuelLogs").order("asc").collect();
-    if (logs.length === 0) {
-      return {
-        totalLiters: 0,
-        totalCost: 0,
-        avgPricePerLiter: 0,
-        avgKmPerLiter: 0,
-        logCount: 0,
-      };
-    }
-
-    const totalLiters = logs.reduce((sum, l) => sum + l.liters, 0);
-    const totalCost = logs.reduce((sum, l) => sum + l.totalPrice, 0);
-    const avgPricePerLiter = totalCost / totalLiters;
-
-    // Calculate km/L from consecutive logs
-    let totalKm = 0;
-    let totalLitersForEfficiency = 0;
-    for (let i = 1; i < logs.length; i++) {
-      const distance = logs[i].odometer - logs[i - 1].odometer;
-      if (distance > 0) {
-        totalKm += distance;
-        totalLitersForEfficiency += logs[i].liters;
-      }
-    }
-
-    const avgKmPerLiter = totalLitersForEfficiency > 0 ? totalKm / totalLitersForEfficiency : 0;
-
+    const logs = await ctx.db.query("fuelLogs").collect();
+    const insights = computeFuelInsights(logs, null);
     return {
-      totalLiters,
-      totalCost,
-      avgPricePerLiter,
-      avgKmPerLiter,
-      logCount: logs.length,
+      totalLiters: insights.totalLiters,
+      totalCost: insights.totalCost,
+      avgPricePerLiter: insights.avgPricePerLiter,
+      avgKmPerLiter: insights.avgKmPerLiter,
+      logCount: insights.refuelCount,
     };
+  },
+});
+
+/**
+ * Full fuel analytics: accurate efficiency segments, price trends, refuel
+ * patterns, per-station aggregates, and the tank range estimate.
+ */
+export const getFuelInsights = query({
+  args: {},
+  returns: v.object({
+    refuelCount: v.number(),
+    totalLiters: v.number(),
+    totalCost: v.number(),
+    avgPricePerLiter: v.number(),
+    validSegments: v.array(
+      v.object({
+        kmL: v.number(),
+        distanceKm: v.number(),
+        liters: v.number(),
+        cost: v.number(),
+        date: v.number(),
+      })
+    ),
+    avgKmPerLiter: v.number(),
+    bestSegment: v.union(
+      v.object({
+        kmL: v.number(),
+        distanceKm: v.number(),
+        liters: v.number(),
+        cost: v.number(),
+        date: v.number(),
+      }),
+      v.null()
+    ),
+    worstSegment: v.union(
+      v.object({
+        kmL: v.number(),
+        distanceKm: v.number(),
+        liters: v.number(),
+        cost: v.number(),
+        date: v.number(),
+      }),
+      v.null()
+    ),
+    avgLitersPerRefuel: v.number(),
+    avgDaysBetweenRefuels: v.number(),
+    daysSinceLastRefuel: v.number(),
+    priceSeries: v.array(
+      v.object({ date: v.number(), pricePerLiter: v.number() })
+    ),
+    latestPricePerLiter: v.number(),
+    monthlySpend: v.array(v.object({ key: v.string(), spend: v.number() })),
+    costPerKm: v.number(),
+    tankRangeKm: v.number(),
+    stationStats: v.array(
+      v.object({
+        station: v.string(),
+        visits: v.number(),
+        liters: v.number(),
+        totalCost: v.number(),
+        avgPricePerLiter: v.number(),
+      })
+    ),
+  }),
+  handler: async (ctx) => {
+    const logs = await ctx.db.query("fuelLogs").collect();
+    const bike = (await ctx.db.query("bike").take(1))[0];
+    const fuelLogs: FuelLogInput[] = logs.map((log) => ({
+      odometer: log.odometer,
+      liters: log.liters,
+      date: log.date,
+      pricePerLiter: log.pricePerLiter,
+      totalPrice: log.totalPrice,
+      fullTank: log.fullTank,
+      stationName: log.stationName,
+    }));
+    return computeFuelInsights(fuelLogs, bike?.fuelTankCapacity ?? null);
   },
 });
 
@@ -94,6 +151,7 @@ export const logFuel = mutation({
     liters: v.number(),
     pricePerLiter: v.number(),
     date: v.number(),
+    fullTank: v.optional(v.boolean()),
     stationName: v.optional(v.string()),
     notes: v.optional(v.string()),
   },
@@ -120,6 +178,7 @@ export const logFuel = mutation({
       pricePerLiter: args.pricePerLiter,
       totalPrice,
       date: args.date,
+      fullTank: args.fullTank,
       stationName: args.stationName,
       notes: args.notes,
     });
@@ -134,13 +193,14 @@ export const logFuel = mutation({
 });
 
 /**
- * Update a fuel log (station name and notes only).
+ * Update a fuel log (station name, notes, and the full-tank flag only).
  */
 export const updateFuelLog = mutation({
   args: {
     fuelLogId: v.id("fuelLogs"),
     stationName: v.optional(v.string()),
     notes: v.optional(v.string()),
+    fullTank: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const log = await ctx.db.get(args.fuelLogId);
@@ -149,6 +209,7 @@ export const updateFuelLog = mutation({
     const updates: Partial<typeof log> = {};
     if (args.stationName !== undefined) updates.stationName = args.stationName;
     if (args.notes !== undefined) updates.notes = args.notes;
+    if (args.fullTank !== undefined) updates.fullTank = args.fullTank;
     if (Object.keys(updates).length > 0) {
       await ctx.db.patch(args.fuelLogId, updates);
     }

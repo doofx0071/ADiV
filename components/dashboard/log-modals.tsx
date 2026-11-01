@@ -68,6 +68,7 @@ export function LogModal({
   // Fuel form
   const [fuelForm, setFuelForm] = useState({ odometer: "", liters: "", pricePerLiter: "", stationName: "", notes: "" });
   const [fuelDate, setFuelDate] = useState(today);
+  const [fuelFullTank, setFuelFullTank] = useState(true);
   const logFuel = useMutation(api.fuel.logFuel);
 
   // Maintenance form
@@ -181,11 +182,13 @@ export function LogModal({
           liters: Number(fuelForm.liters),
           pricePerLiter: Number(fuelForm.pricePerLiter),
           date: toDateMs(fuelDate),
+          fullTank: fuelFullTank,
           stationName: fuelForm.stationName || undefined,
           notes: fuelForm.notes || undefined,
         });
         setFuelForm({ odometer: "", liters: "", pricePerLiter: "", stationName: "", notes: "" });
         setFuelDate(today);
+        setFuelFullTank(true);
         toast.success("Fuel log added!");
       } else if (type === "maintenance") {
         if (!maintForm.itemId) { toast.error("Select a maintenance item"); return; }
@@ -361,6 +364,28 @@ export function LogModal({
                 <Label htmlFor="fuel-station">Station</Label>
                 <Input id="fuel-station" name="stationName" value={fuelForm.stationName} placeholder="Shell, Petron..."
                   onChange={(e) => setFuelForm({ ...fuelForm, stationName: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Filled to full?</Label>
+                <div className="flex gap-2" role="group" aria-label="Filled to full">
+                  <Button type="button" size="sm"
+                    variant={fuelFullTank ? "default" : "outline"}
+                    aria-pressed={fuelFullTank}
+                    className="min-h-9 flex-1 cursor-pointer"
+                    onClick={() => setFuelFullTank(true)}>
+                    Yes
+                  </Button>
+                  <Button type="button" size="sm"
+                    variant={!fuelFullTank ? "default" : "outline"}
+                    aria-pressed={!fuelFullTank}
+                    className="min-h-9 flex-1 cursor-pointer"
+                    onClick={() => setFuelFullTank(false)}>
+                    No, partial fill
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Only full-to-full refuels count toward km/L accuracy.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="fuel-notes">Notes</Label>

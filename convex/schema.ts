@@ -94,6 +94,9 @@ export default defineSchema({
     pricePerLiter: v.number(),
     totalPrice: v.number(),
     date: v.number(),
+    // Fuelly-method flag: filled the tank to full? undefined = legacy log,
+    // treated as full (best effort). Efficiency segments only count full→full.
+    fullTank: v.optional(v.boolean()),
     stationName: v.optional(v.string()),
     notes: v.optional(v.string()),
   }).index("by_date", ["date"]),

@@ -3,6 +3,7 @@ import { mutation, query } from "./_generated/server";
 import type { DatabaseReader } from "./_generated/server";
 import { ACHIEVEMENT_DEFS, type AchievementType } from "../lib/achievements";
 import { computeStreakStats } from "../lib/streak";
+import { computeFuelInsights } from "../lib/fuel-insights";
 
 export { ACHIEVEMENT_DEFS, type AchievementType };
 
@@ -26,13 +27,22 @@ async function collectAchievementMetrics(
   const rides = await ctx.db.query("rides").collect();
   const totalDistance = rides.reduce((sum, r) => sum + r.distance, 0);
 
-  const fuelLogs = await ctx.db.query("fuelLogs").order("asc").collect();
-  let bestEfficiency = 0;
-  for (let i = 1; i < fuelLogs.length; i++) {
-    const distance = fuelLogs[i].odometer - fuelLogs[i - 1].odometer;
-    const efficiency = distance / fuelLogs[i].liters;
-    if (efficiency > bestEfficiency) bestEfficiency = efficiency;
-  }
+  const fuelLogs = await ctx.db.query("fuelLogs").collect();
+  // Shared engine (lib/fuel-insights.ts): best efficiency over valid
+  // full→full segments in date order — replaces the old per-pair loop that
+  // ignored partial fills and back-filled dates.
+  const bestEfficiency =
+    computeFuelInsights(
+      fuelLogs.map((log) => ({
+        odometer: log.odometer,
+        liters: log.liters,
+        date: log.date,
+        pricePerLiter: log.pricePerLiter,
+        totalPrice: log.totalPrice,
+        fullTank: log.fullTank,
+      })),
+      null,
+    ).bestSegment?.kmL ?? 0;
 
   const maintenanceLogs = await ctx.db.query("maintenanceLogs").collect();
   const expenses = await ctx.db.query("expenses").collect();

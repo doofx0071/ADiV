@@ -33,6 +33,7 @@ export default function LogScreen() {
   const [date, setDate] = useState<Date | null>(isHistory ? null : new Date());
   const [ride, setRide] = useState({ startOdometer: "", endOdometer: "", startTime: null as Date | null, endTime: null as Date | null, notes: "" });
   const [fuel, setFuel] = useState({ odometer: "", liters: "", pricePerLiter: "", stationName: "", notes: "" });
+  const [fuelFullTank, setFuelFullTank] = useState<"yes" | "no">("yes");
   const [service, setService] = useState({ itemId: initialItemId ?? "", odometer: "", cost: "", notes: "" });
   const [expense, setExpense] = useState({ category: "", amount: "", description: "" });
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -108,7 +109,7 @@ export default function LogScreen() {
         const liters = numberOrUndefined(fuel.liters);
         const pricePerLiter = numberOrUndefined(fuel.pricePerLiter);
         if (odometer === undefined || liters === undefined || pricePerLiter === undefined || liters <= 0 || pricePerLiter <= 0) throw new Error("Enter an odometer reading, liters, and a positive price per liter.");
-        await logFuel({ odometer, liters, pricePerLiter, date: logDate, stationName: fuel.stationName.trim() || undefined, notes: fuel.notes.trim() || undefined });
+        await logFuel({ odometer, liters, pricePerLiter, date: logDate, fullTank: fuelFullTank === "yes", stationName: fuel.stationName.trim() || undefined, notes: fuel.notes.trim() || undefined });
       } else if (type === "maintenance") {
         const odometer = numberOrUndefined(service.odometer);
         const cost = numberOrUndefined(service.cost);
@@ -153,6 +154,15 @@ export default function LogScreen() {
           <Field label="Fuel added (liters) *" value={fuel.liters} onChangeText={updateFuel("liters")} keyboardType="decimal-pad" />
           <Field label="Price per liter (₱) *" value={fuel.pricePerLiter} onChangeText={updateFuel("pricePerLiter")} keyboardType="decimal-pad" />
           <Field label="Station" value={fuel.stationName} onChangeText={updateFuel("stationName")} />
+          <View style={{ gap: 4 }}>
+            <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "700" }}>Filled to full?</Text>
+            <ChoiceRow
+              value={fuelFullTank}
+              options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No, partial fill" }]}
+              onChange={setFuelFullTank}
+            />
+            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Only full-to-full refuels count toward km/L accuracy.</Text>
+          </View>
           <Field label="Notes" value={fuel.notes} onChangeText={updateFuel("notes")} multiline numberOfLines={3} />
         </> : null}
 
