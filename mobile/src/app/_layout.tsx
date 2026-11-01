@@ -20,6 +20,7 @@ import { convexClient } from "@/lib/convex";
 import { configureNotificationHandler, subscribeToMaintenanceNotification } from "@/lib/notification-api";
 import { NotificationSync } from "@/components/notification-sync";
 import { WidgetSync } from "@/components/widget-sync";
+import { RootErrorBoundary } from "@/components/root-error-boundary";
 import "@/widgets/widget-task-handler";
 
 configureNotificationHandler();
@@ -73,7 +74,13 @@ function Navigator() {
 
 function Runtime() {
   if (!convexClient) return <ConfigRequired />;
-  return <ConvexProvider client={convexClient}><Navigator /></ConvexProvider>;
+  return (
+    <ConvexProvider client={convexClient}>
+      <RootErrorBoundary>
+        <Navigator />
+      </RootErrorBoundary>
+    </ConvexProvider>
+  );
 }
 
 export default function RootLayout() {

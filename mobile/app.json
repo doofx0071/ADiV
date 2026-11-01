@@ -2,7 +2,7 @@
   "expo": {
     "name": "AdiV",
     "slug": "adiv-mobile",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/images/adiv-icon-safe.png",
     "scheme": "adiv",
@@ -12,7 +12,7 @@
     },
     "android": {
       "package": "com.damascus.adiv",
-      "versionCode": 8,
+      "versionCode": 9,
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ],
