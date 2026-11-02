@@ -1,8 +1,13 @@
+"use no memo";
 /**
  * Home-screen widget (4x2): current odometer + the most urgent maintenance
  * item. Data comes from a snapshot the app writes to AsyncStorage whenever
  * its data syncs (components/widget-sync.tsx) — the widget never talks to
  * Convex itself.
+ *
+ * "use no memo" is required: react-native-android-widget renders in headless
+ * mode and rejects React-Compiler-transformed components ("Invalid Hook
+ * Call"). The compiler is enabled via the reactCompiler experiment.
  */
 import { FlexWidget, TextWidget } from "react-native-android-widget";
 import AsyncStorage from "@react-native-async-storage/async-storage";
