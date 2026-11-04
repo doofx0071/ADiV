@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { ConvexProvider } from "convex/react";
-import { Stack, router, useSegments } from "expo-router";
+import { Stack, router, useGlobalSearchParams, useSegments } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -22,6 +22,7 @@ import { convexClient } from "@/lib/convex";
 import { configureNotificationHandler, subscribeToMaintenanceNotification } from "@/lib/notification-api";
 import { NotificationSync } from "@/components/notification-sync";
 import { WidgetSync } from "@/components/widget-sync";
+import { RideSyncManager } from "@/components/ride-sync-manager";
 import { RootErrorBoundary } from "@/components/root-error-boundary";
 import "@/widgets/widget-task-handler";
 
@@ -46,9 +47,13 @@ function ConfigRequired() {
 function Navigator() {
   const { resolved } = useAppTheme();
   const segments = useSegments();
+  const routeParams = useGlobalSearchParams<{ mode?: string; fullscreen?: string; rideId?: string }>();
   // The brand header is persistent: pages transition beneath it instead of
   // carrying it. Setup is the one screen that runs headerless.
   const isSetup = segments[segments.length - 1] === "setup";
+  const isNavigationRecord = segments[segments.length - 1] === "record" && routeParams.mode === "navigateAndRecord";
+  const isImmersiveRecord = segments[segments.length - 1] === "record" && routeParams.fullscreen === "true";
+  const isActivityShare = Boolean(routeParams.rideId);
 
   useEffect(() => {
     const subscription = subscribeToMaintenanceNotification(() => router.push("/(tabs)/maintenance"));
@@ -58,13 +63,14 @@ function Navigator() {
   return (
     <>
       <StatusBar style={resolved === "dark" ? "light" : "dark"} />
-      {Platform.OS !== "web" ? <NotificationSync /> : null}
-      {Platform.OS !== "web" ? <WidgetSync /> : null}
+      {!isActivityShare && Platform.OS !== "web" ? <NotificationSync /> : null}
+      {!isActivityShare && Platform.OS !== "web" ? <WidgetSync /> : null}
+      {!isActivityShare && Platform.OS !== "web" ? <RideSyncManager /> : null}
       <SafeAreaView
         edges={["top"]}
         style={{ flex: 1, backgroundColor: resolved === "dark" ? "#0a0a0f" : "#f8fafc" }}
       >
-        {!isSetup && Platform.OS !== "web" ? <BrandHeader /> : null}
+        {!isSetup && !isNavigationRecord && !isImmersiveRecord && !isActivityShare && Platform.OS !== "web" ? <BrandHeader /> : null}
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: resolved === "dark" ? "#0a0a0f" : "#f8fafc" } }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="setup" />
@@ -73,12 +79,14 @@ function Navigator() {
           <Stack.Screen name="maintenance/edit" />
           <Stack.Screen name="log/[type]" />
           <Stack.Screen name="history/edit" />
-          <Stack.Screen name="rides" />
           <Stack.Screen name="expenses" />
           <Stack.Screen name="record" />
+          <Stack.Screen name="share/[rideId]" />
           <Stack.Screen name="gallery" />
           <Stack.Screen name="achievements" />
           <Stack.Screen name="export" />
+          <Stack.Screen name="offline-packs" />
+          <Stack.Screen name="usage" />
         </Stack>
       </SafeAreaView>
     </>

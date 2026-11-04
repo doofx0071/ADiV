@@ -83,6 +83,9 @@ export default defineSchema({
     startAt: v.optional(v.number()),
     endAt: v.optional(v.number()),
     durationMinutes: v.number(),
+    // Stable device-generated key used to make queued ride uploads replay-safe.
+    // Optional so existing rows and web clients remain compatible.
+    clientRideId: v.optional(v.string()),
     // GPS-tracked rides: encoded Google polyline of the recorded track,
     // GPS-measured distance in km (distance mirrors it at save time), and
     // the max speed observed. Absent = manually logged ride.
@@ -91,7 +94,9 @@ export default defineSchema({
     trackedDistance: v.optional(v.number()),
     maxSpeedKmh: v.optional(v.number()),
     notes: v.optional(v.string()),
-  }).index("by_date", ["date"]),
+  })
+    .index("by_date", ["date"])
+    .index("by_client_ride_id", ["clientRideId"]),
 
   // ── Fuel Logs ─────────────────────────────────────────────────────
   // Fuel-up records for tracking consumption and costs.

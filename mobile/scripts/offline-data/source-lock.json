@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "provider": "Geofabrik",
+  "region": "Philippines",
+  "snapshotDate": "2026-10-31",
+  "osmDataTimestamp": "2026-10-31T21:23:06Z",
+  "url": "https://download.geofabrik.de/asia/philippines-261031.osm.pbf",
+  "bytes": 612430134,
+  "md5": "60557ff784e8cd77fd63d20541b49f0f",
+  "sampleRegion": {
+    "id": "davao",
+    "name": "Davao City sample",
+    "bbox": [125.2, 6.8, 125.75, 7.45]
+  },
+  "shortbreadAuxiliaryData": [
+    {
+      "name": "water-polygons-split-4326.zip",
+      "url": "https://osmdata.openstreetmap.de/download/water-polygons-split-4326.zip",
+      "bytes": 906828968,
+      "etag": "\"360d1ca8-65f1ac458c124\"",
+      "lastModified": "2026-10-31T03:47:08Z",
+      "license": "ODbL-1.0"
+    },
+    {
+      "name": "simplified-water-polygons-split-3857.zip",
+      "url": "https://osmdata.openstreetmap.de/download/simplified-water-polygons-split-3857.zip",
+      "bytes": 23732279,
+      "etag": "\"16a2037-65f1aca489623\"",
+      "lastModified": "2026-10-31T03:48:47Z",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "toolchain": {
+    "osmiumTool": "1.19.0",
+    "tilemaker": "3.2.0",
+    "shortbreadTilemakerCommit": "d1bafac78056cc7e40f3f83b84a4496227f62508",
+    "pmtiles": "1.31.2",
+    "fontMakerCommit": "714ccaea67d384717890a3c2c27143dfdd4189b7",
+    "googleFontsCommit": "6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec",
+    "notoSansFont": "ofl/notosans/NotoSans[wdth,wght].ttf",
+    "notoSansLicense": "ofl/notosans/OFL.txt"
+  },
+  "routing": {
+    "status": "deferred-unverified",
+    "reason": "Do not publish a routing graph until the native engine and graph pass the physical Android airplane-mode gate."
+  }
+}

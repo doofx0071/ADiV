@@ -2,12 +2,13 @@ import { useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router } from "expo-router";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { Pencil, Trash2 } from "lucide-react-native";
 import { api, type Id } from "@/lib/api";
 import { AppButton, Card, ChoiceRow, EmptyState, LoadingState, Page } from "@/components/ui";
 import { dateLabel, km, php, rideTimeLabel } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 
 type EntryType = "ride" | "fuel" | "maintenance" | "expense";
 type Filter = "all" | EntryType;
@@ -18,10 +19,10 @@ const options: { value: Filter; label: string }[] = [
 ];
 
 export default function HistoryScreen() {
-  const rides = useQuery(api.rides.getRides, { limit: 1000 });
-  const fuelLogs = useQuery(api.fuel.getFuelLogs, { limit: 1000 });
-  const maintenanceLogs = useQuery(api.maintenance.getAllMaintenanceLogs, { limit: 1000 });
-  const expenses = useQuery(api.expenses.getExpenses, { limit: 1000 });
+  const rides = useShareSafeQuery(api.rides.getRides, { limit: 1000 });
+  const fuelLogs = useShareSafeQuery(api.fuel.getFuelLogs, { limit: 1000 });
+  const maintenanceLogs = useShareSafeQuery(api.maintenance.getAllMaintenanceLogs, { limit: 1000 });
+  const expenses = useShareSafeQuery(api.expenses.getExpenses, { limit: 1000 });
   const deleteRide = useMutation(api.rides.deleteRide);
   const deleteFuel = useMutation(api.fuel.deleteFuelLog);
   const deleteMaintenance = useMutation(api.maintenance.deleteMaintenanceLog);

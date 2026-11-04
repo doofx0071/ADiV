@@ -1,0 +1,44 @@
+{
+  "format": "adiv-offline-pack",
+  "manifestVersion": 1,
+  "packId": "ph-davao",
+  "version": "1.0.1",
+  "name": "Davao sample",
+  "region": "davao",
+  "dataDate": "2026-10-31",
+  "minimumAppVersion": "1.3.2",
+  "attribution": "© OpenStreetMap contributors · Data available under ODbL-1.0",
+  "source": {
+    "provider": "Geofabrik",
+    "pbfDate": "2026-10-31",
+    "pbfMd5": "60557ff784e8cd77fd63d20541b49f0f"
+  },
+  "licenses": [
+    { "component": "OpenStreetMap data", "license": "ODbL-1.0", "attribution": "© OpenStreetMap contributors" },
+    { "component": "Shortbread schema", "license": "CC0-1.0" },
+    { "component": "Shortbread Tilemaker configuration", "license": "FTWPL" },
+    { "component": "Noto Sans font data", "license": "OFL-1.1" },
+    { "component": "ADiV offline style and transparent sprite", "license": "CC0-1.0" }
+  ],
+  "coverage": [125.2, 6.8, 125.75, 7.45],
+  "mapSchema": "shortbread-1.1",
+  "searchSchemaVersion": 2,
+  "assets": {
+    "map": "map/davao.pmtiles",
+    "search": "search/places.sqlite",
+    "poi": "search/pois.geojson",
+    "style": "style/style.json",
+    "glyphsDir": "style/glyphs",
+    "sprite": "style/sprites/sprite"
+  },
+  "files": [
+    { "path": "map/davao.pmtiles", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "bytes": 1 },
+    { "path": "search/places.sqlite", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "bytes": 1 },
+    { "path": "search/pois.geojson", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "bytes": 1 },
+    { "path": "style/style.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "bytes": 1 },
+    { "path": "style/glyphs/Noto Sans Regular/0-255.pbf", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "bytes": 1 },
+    { "path": "style/sprites/sprite.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "bytes": 1 },
+    { "path": "style/sprites/sprite.png", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "bytes": 1 },
+    { "path": "style/LICENSES.md", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "bytes": 1 }
+  ]
+}

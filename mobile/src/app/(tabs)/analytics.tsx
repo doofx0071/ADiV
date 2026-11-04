@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Line, Polyline } from "react-native-svg";
 import { AppText as Text } from "@/components/app-text";
-import { useQuery } from "convex/react";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 import { api } from "@/lib/api";
 import { Card, LoadingState, Page, SectionTitle, StatCard } from "@/components/ui";
 import { dateStartMs, php, km } from "@/lib/format";
@@ -68,17 +68,17 @@ function SpendingTrend({ data, color, gridColor, mutedColor, total }: {
 }
 
 export default function AnalyticsScreen() {
-  const bike = useQuery(api.bike.getBike);
-  const rideStats = useQuery(api.rides.getRideStats, {});
-  const rides = useQuery(api.rides.getRides, { limit: 1000 });
-  const fuelStats = useQuery(api.fuel.getFuelStats, {});
-  const fuelLogs = useQuery(api.fuel.getFuelLogs, { limit: 1000 });
-  const maintenanceStats = useQuery(api.maintenance.getMaintenanceStats, {});
-  const maintenanceLogs = useQuery(api.maintenance.getAllMaintenanceLogs, { limit: 1000 });
-  const expenses = useQuery(api.expenses.getExpenses, { limit: 1000 });
-  const expenseStats = useQuery(api.expenses.getExpenseStats, {});
-  const items = useQuery(api.maintenance.getMaintenanceItems);
-  const fuelInsights = useQuery(api.fuel.getFuelInsights);
+  const bike = useShareSafeQuery(api.bike.getBike);
+  const rideStats = useShareSafeQuery(api.rides.getRideStats, {});
+  const rides = useShareSafeQuery(api.rides.getRides, { limit: 1000 });
+  const fuelStats = useShareSafeQuery(api.fuel.getFuelStats, {});
+  const fuelLogs = useShareSafeQuery(api.fuel.getFuelLogs, { limit: 1000 });
+  const maintenanceStats = useShareSafeQuery(api.maintenance.getMaintenanceStats, {});
+  const maintenanceLogs = useShareSafeQuery(api.maintenance.getAllMaintenanceLogs, { limit: 1000 });
+  const expenses = useShareSafeQuery(api.expenses.getExpenses, { limit: 1000 });
+  const expenseStats = useShareSafeQuery(api.expenses.getExpenseStats, {});
+  const items = useShareSafeQuery(api.maintenance.getMaintenanceItems);
+  const fuelInsights = useShareSafeQuery(api.fuel.getFuelInsights);
   const { colors } = useAppTheme();
   const { width: screenWidth } = useWindowDimensions();
   // The carousel lives inside Page's 18px horizontal padding, so each page

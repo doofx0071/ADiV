@@ -16,6 +16,7 @@ export const getRides = query({
       endOdometer: v.number(),
       distance: v.number(),
       date: v.number(),
+      clientRideId: v.optional(v.string()),
       startAt: v.optional(v.number()),
       endAt: v.optional(v.number()),
       durationMinutes: v.number(),
@@ -66,6 +67,7 @@ export const logRide = mutation({
     startOdometer: v.number(),
     endOdometer: v.number(),
     date: v.number(),
+    clientRideId: v.optional(v.string()),
     durationMinutes: v.optional(v.number()),
     startAt: v.optional(v.number()),
     endAt: v.optional(v.number()),
@@ -93,6 +95,9 @@ export const logRide = mutation({
     }
     if (args.route !== undefined && args.route.length > 1_000_000) {
       throw new Error("Recorded route is too large to save.");
+    }
+    if (args.clientRideId !== undefined && (!args.clientRideId.trim() || args.clientRideId.length > 120)) {
+      throw new Error("Client ride ID must be between 1 and 120 characters.");
     }
 
     const hasStartAt = args.startAt !== undefined;
@@ -123,6 +128,7 @@ export const logRide = mutation({
       endOdometer: args.endOdometer,
       distance,
       date: args.date,
+      ...(args.clientRideId !== undefined ? { clientRideId: args.clientRideId } : {}),
       durationMinutes,
       notes: args.notes,
       ...(args.source !== undefined ? { source: args.source } : {}),
@@ -132,6 +138,27 @@ export const logRide = mutation({
       ...(args.startAt !== undefined ? { startAt: args.startAt } : {}),
       ...(args.endAt !== undefined ? { endAt: args.endAt } : {}),
     };
+
+    if (args.clientRideId !== undefined) {
+      const existing = await ctx.db
+        .query("rides")
+        .withIndex("by_client_ride_id", (q) => q.eq("clientRideId", args.clientRideId!))
+        .unique();
+      if (existing) {
+        const samePayload =
+          existing.startOdometer === ride.startOdometer &&
+          existing.endOdometer === ride.endOdometer &&
+          existing.date === ride.date &&
+          existing.durationMinutes === ride.durationMinutes &&
+          existing.source === ride.source &&
+          existing.trackedDistance === ride.trackedDistance &&
+          existing.maxSpeedKmh === ride.maxSpeedKmh &&
+          existing.notes === ride.notes;
+        if (!samePayload) throw new Error("Client ride ID was already used for different ride data.");
+        return existing._id;
+      }
+    }
+
     const rideId = await ctx.db.insert("rides", ride);
 
     const bike = (await ctx.db.query("bike").take(1))[0];

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { AppText as Text } from "@/components/app-text";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api, type Id } from "@/lib/api";
 import { AppButton, Card, Field, LoadingState, Page } from "@/components/ui";
 import { numberOrUndefined } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 
 type ScheduleForm = { name: string; category: string; intervalKm: string; intervalMonths: string; intervalSource: string; description: string; serviceLevel: string; notes: string };
 const emptyForm: ScheduleForm = { name: "", category: "engine", intervalKm: "", intervalMonths: "", intervalSource: "", description: "", serviceLevel: "", notes: "" };
@@ -13,7 +14,7 @@ const emptyForm: ScheduleForm = { name: "", category: "engine", intervalKm: "", 
 export default function EditMaintenanceScreen() {
   const { itemId: itemIdParam } = useLocalSearchParams<{ itemId?: string }>();
   const itemId = itemIdParam as Id<"maintenanceItems"> | undefined;
-  const items = useQuery(api.maintenance.getMaintenanceItems);
+  const items = useShareSafeQuery(api.maintenance.getMaintenanceItems);
   const createItem = useMutation(api.maintenance.createMaintenanceItem);
   const updateItem = useMutation(api.maintenance.updateMaintenanceItem);
   const [draft, setDraft] = useState<ScheduleForm | null>(null);

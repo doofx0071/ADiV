@@ -1,0 +1,34 @@
+{
+  "version": 8,
+  "name": "ADiV Shortbread Offline",
+  "metadata": {
+    "adiv:styleSchema": "shortbread-1.1",
+    "maplibre:attribution": "© OpenStreetMap contributors"
+  },
+  "glyphs": "__ADIV_GLYPHS_URI__/{fontstack}/{range}.pbf",
+  "sprite": "__ADIV_SPRITE_URI__",
+  "sources": {
+    "shortbread": {
+      "type": "vector",
+      "url": "pmtiles://__ADIV_MAP_URI__",
+      "attribution": "© OpenStreetMap contributors"
+    },
+    "adivPois": {
+      "type": "geojson",
+      "data": "__ADIV_POI_URI__"
+    }
+  },
+  "layers": [
+    { "id": "background", "type": "background", "paint": { "background-color": "#e9f0ed" } },
+    { "id": "ocean", "type": "fill", "source": "shortbread", "source-layer": "ocean", "paint": { "fill-color": "#b7dce5" } },
+    { "id": "water", "type": "fill", "source": "shortbread", "source-layer": "water_polygons", "paint": { "fill-color": "#b7dce5" } },
+    { "id": "land", "type": "fill", "source": "shortbread", "source-layer": "land", "paint": { "fill-color": "#e9f0ed" } },
+    { "id": "boundaries", "type": "line", "source": "shortbread", "source-layer": "boundaries", "paint": { "line-color": "#9ca9a4", "line-width": 0.7, "line-dasharray": [2, 2] } },
+    { "id": "streets", "type": "line", "source": "shortbread", "source-layer": "streets", "paint": { "line-color": ["match", ["get", "kind"], "motorway", "#c96762", ["trunk", "primary"], "#df9f56", "#fffdf8"], "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.35, 14, 4] } },
+    { "id": "buildings", "type": "fill", "source": "shortbread", "source-layer": "buildings", "minzoom": 13, "paint": { "fill-color": "#d6c9b7", "fill-outline-color": "#c8b9a7" } },
+    { "id": "places", "type": "symbol", "source": "shortbread", "source-layer": "place_labels", "layout": { "text-field": ["coalesce", ["get", "name_en"], ["get", "name"]], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 5, 11, 13, 16] }, "paint": { "text-color": "#35433e", "text-halo-color": "#f7faf8", "text-halo-width": 1.2 } },
+    { "id": "street-labels", "type": "symbol", "source": "shortbread", "source-layer": "street_labels", "minzoom": 11, "layout": { "symbol-placement": "line", "text-field": ["coalesce", ["get", "name_en"], ["get", "name"], ["get", "ref"]], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 11, 10, 16, 13], "text-max-angle": 35 }, "paint": { "text-color": "#35433e", "text-halo-color": "#f7faf8", "text-halo-width": 1.5 } },
+    { "id": "search-poi-dots", "type": "circle", "source": "shortbread", "source-layer": "pois", "minzoom": 14, "filter": ["has", "name"], "paint": { "circle-radius": 3, "circle-color": "#e62025", "circle-stroke-color": "#ffffff", "circle-stroke-width": 1 } },
+    { "id": "search-poi-labels", "type": "symbol", "source": "shortbread", "source-layer": "pois", "minzoom": 14, "filter": ["has", "name"], "layout": { "text-field": ["get", "name"], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 14, 10, 17, 13], "text-max-width": 12, "text-offset": [0, 0.7], "text-allow-overlap": false }, "paint": { "text-color": "#263631", "text-halo-color": "#f7faf8", "text-halo-width": 1.4 } }
+  ]
+}

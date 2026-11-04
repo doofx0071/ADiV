@@ -3,16 +3,16 @@ import { Modal, Pressable, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { Image } from "expo-image";
 import { X } from "lucide-react-native";
-import { useQuery } from "convex/react";
 import { api } from "@/lib/api";
 import { EmptyState, LoadingState, Page } from "@/components/ui";
 import { dateLabel } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 
 export default function GalleryScreen() {
-  const logs = useQuery(api.maintenance.getAllMaintenanceLogs, { limit: 1000 });
+  const logs = useShareSafeQuery(api.maintenance.getAllMaintenanceLogs, { limit: 1000 });
   const storageIds = useMemo(() => [...new Set((logs ?? []).flatMap((log) => log.photos ?? []))], [logs]);
-  const urls = useQuery(api.files.getFileUrls, storageIds.length ? { storageIds } : "skip");
+  const urls = useShareSafeQuery(api.files.getFileUrls, storageIds.length ? { storageIds } : "skip");
   const [selected, setSelected] = useState<string | null>(null);
   const { colors } = useAppTheme();
 

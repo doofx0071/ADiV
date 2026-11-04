@@ -1,0 +1,34 @@
+# ADiV Search, Navigation, and Ride Controls
+
+- [x] Fix Storage Access Framework manifest discovery, create staging parents, and preserve nested relative paths during pack copies.
+- [x] Expand the Davao FTS index to include POIs, addresses, and joined-name aliases; version the search schema.
+- [x] Add offline street and POI text layers and build Davao pack v1.0.1.
+- [x] Replace online Nominatim keystroke search with debounced, location-biased Photon search; skip network search when disconnected.
+- [x] Add navigation-first launch from Rides, red live route, turn guidance, and recenter control.
+- [x] Add an ongoing ride notification with live metrics and Pause/Resume/End actions.
+- [x] Run root tests, mobile lint/typecheck, build the local WSL APK, install it through ADB, and confirm app launch (APK 1.3.4 / version code 14).
+- [x] Import the Davao pack from Android's folder picker; the installed app accepted it after manifest, checksum, style, and FTS5 validation.
+- [x] Confirm the Davao map renders and local search returns results in Airplane mode; user reported slow response and a search-results list that would not scroll.
+- [x] Add bounded online requests, local-first result display, full-screen ended-ride map, pan/zoom-safe history map, GPS speed/distance filtering, notification metrics, and saved ride stats/map.
+- [x] Build and verify local WSL APK 1.3.5 / version code 15 for ARM64.
+- [x] Install APK 1.3.5 over the existing app and confirm Android launches it on the Xiaomi.
+- [x] Keep a selected-place route in the camera bounds when starting navigation and tighten GPS jitter filtering; root tests and mobile typecheck pass.
+- [x] Generate the Philippines-wide `ph-philippines` v1.0.0 pack from the locked 2026-10-31 OSM extract; PMTiles verification and all 263 manifest checksums pass (578,764,053 bytes).
+- [x] Build and verify APK 1.3.6 / version code 16 locally in WSL for ARM64; its signature matches APK 1.3.5.
+- [x] Install APK 1.3.6 over APK 1.3.5 on the Xiaomi; Android reports version code 16 and the app process is running.
+- [x] Transfer all 264 nationwide pack files to `Downloads/ADiV-Philippines-1.0.0`; on-device manifest, map, SQLite, and POI hashes match the PC files.
+- [x] User reports that APK 1.3.6 imported the nationwide pack successfully from Downloads.
+- [x] User confirms the nationwide map and both local searches render in Airplane mode; the map is sluggish and Navigate sometimes closes the app.
+- [ ] Recheck the POI route line, stationary average speed, and saved ride map/stats on the Xiaomi.
+- [x] Diagnose the 1.3.6 Airplane-mode cold-start block: the root screen waits for the Convex bike query before routing.
+- [x] Add an Android offline/unreachable and five-second backend-timeout fallback to the local Rides screen; leave web/iOS routing unchanged.
+- [x] Build APK 1.3.7 / version code 17 locally in WSL for ARM64; package metadata and matching 1.3.6 signing certificate verified.
+- [x] Install APK 1.3.7 over 1.3.6; Android reports version code 17 and the app process launches.
+- [x] User confirms cold launch in Airplane mode reaches local Rides on APK 1.3.7.
+- [x] User confirms the nationwide map and both local searches render in Airplane mode on APK 1.3.7; opening the map is sluggish and the app closed automatically.
+- [x] Diagnose Android exit history: native and Java crashes reported 1.5–5.6 GB RSS; the active style loaded a 68.7 MB nationwide GeoJSON containing about 365,000 POIs.
+- [x] Move map POI labels to the PMTiles `pois` vector layer; retain full local search in SQLite FTS5 and generate only a 44-byte GeoJSON compatibility asset.
+- [x] Build Philippines pack v1.0.1 (510,111,012 bytes); PMTiles verification and all 263 manifest checksums pass.
+- [x] Transfer v1.0.1 to `Downloads/ADiV-Philippines-1.0.1`; device hashes for manifest, PMTiles, SQLite, and GeoJSON match the PC files.
+- [ ] Import v1.0.1 and retry map opening/search in Airplane mode; confirm whether the lag and app closure are resolved before removing the old pack.
+- [ ] Exercise query scrolling/selection, route deviation and recovery, map interaction, notification metrics/actions, and saved ride stats on the Xiaomi.

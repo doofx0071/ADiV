@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { AppText as Text } from "@/components/app-text";
-import { useQuery } from "convex/react";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { api } from "@/lib/api";
 import { AppButton, Card, LoadingState, Page } from "@/components/ui";
 import { useAppTheme } from "@/lib/theme";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 
 type ExportKind = "json" | "rides" | "fuel" | "maintenance" | "expenses";
 
@@ -15,13 +15,13 @@ function csvCell(value: unknown) {
 }
 
 export default function ExportScreen() {
-  const bike = useQuery(api.bike.getBike);
-  const items = useQuery(api.maintenance.getMaintenanceItems);
-  const rides = useQuery(api.rides.getRides, { limit: 10000 });
-  const fuelLogs = useQuery(api.fuel.getFuelLogs, { limit: 10000 });
-  const maintenanceLogs = useQuery(api.maintenance.getAllMaintenanceLogs, { limit: 10000 });
-  const expenses = useQuery(api.expenses.getExpenses, { limit: 10000 });
-  const achievements = useQuery(api.achievements.getAchievements);
+  const bike = useShareSafeQuery(api.bike.getBike);
+  const items = useShareSafeQuery(api.maintenance.getMaintenanceItems);
+  const rides = useShareSafeQuery(api.rides.getRides, { limit: 10000 });
+  const fuelLogs = useShareSafeQuery(api.fuel.getFuelLogs, { limit: 10000 });
+  const maintenanceLogs = useShareSafeQuery(api.maintenance.getAllMaintenanceLogs, { limit: 10000 });
+  const expenses = useShareSafeQuery(api.expenses.getExpenses, { limit: 10000 });
+  const achievements = useShareSafeQuery(api.achievements.getAchievements);
   const [sharing, setSharing] = useState<ExportKind | null>(null);
   const [error, setError] = useState("");
   const { colors } = useAppTheme();

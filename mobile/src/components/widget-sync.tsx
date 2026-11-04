@@ -4,11 +4,11 @@
  * maintenance item, colored by reminder status.
  */
 import { useEffect } from "react";
-import { useQuery } from "convex/react";
 import { api } from "@/lib/api";
 import { evaluateMaintenanceItem, formatDueText } from "@/lib/shared";
 import { saveWidgetSnapshot } from "@/widgets/adiv-widget";
 import { pushWidgetUpdate } from "@/widgets/widget-update";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 
 const STATUS_COLORS: Record<string, `#${string}`> = {
   overdue: "#ff5a5f",
@@ -27,8 +27,8 @@ const STATUS_ORDER: Record<string, number> = {
 };
 
 export function WidgetSync() {
-  const bike = useQuery(api.bike.getBike);
-  const items = useQuery(api.maintenance.getMaintenanceItems);
+  const bike = useShareSafeQuery(api.bike.getBike);
+  const items = useShareSafeQuery(api.maintenance.getMaintenanceItems);
 
   useEffect(() => {
     if (!bike || !items) return;

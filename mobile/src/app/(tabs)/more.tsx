@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router } from "expo-router";
-import { ChevronRight, Download, History, Images, Medal, Moon, Sun, Wallet, Wrench } from "lucide-react-native";
+import { Activity, ChevronRight, Download, History, Images, MapPin, Medal, Moon, Sun, Wallet, Wrench } from "lucide-react-native";
 import { useAppTheme, type ThemeMode } from "@/lib/theme";
 import { AppButton, Card, ChoiceRow, Page } from "@/components/ui";
 import { TimeField } from "@/components/date-field";
@@ -93,11 +93,15 @@ export default function MoreScreen() {
         <MenuLink icon={<Medal size={19} color={colors.primary} />} title="Achievements" detail="See your unlocked riding milestones" onPress={() => router.push("/achievements")} />
         <View style={{ height: 1, backgroundColor: colors.border }} />
         <MenuLink icon={<Download size={19} color={colors.primary} />} title="Export records" detail="Share a JSON backup or CSV file" onPress={() => router.push("/export")} />
+        <View style={{ height: 1, backgroundColor: colors.border }} />
+        <MenuLink icon={<MapPin size={19} color={colors.primary} />} title="Offline map packs" detail="Import and verify local map data on Android" onPress={() => router.push("/offline-packs")} />
+        <View style={{ height: 1, backgroundColor: colors.border }} />
+        <MenuLink icon={<Activity size={19} color={colors.primary} />} title="Usage" detail="Local map activity and Mapbox account statistics" onPress={() => router.push("/usage")} />
       </Card>
 
       <Card>
         <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "900" }}>Connected garage</Text>
-        <Text style={{ color: colors.mutedForeground, lineHeight: 19, fontSize: 13 }}>The Android app and web app use the same Convex data. An internet connection is required to load or save records.</Text>
+        <Text style={{ color: colors.mutedForeground, lineHeight: 19, fontSize: 13 }}>Ride tracks and new summaries stay on this phone until their summary syncs. Maintenance, fuel, and expense records still need an internet connection.</Text>
         <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Single bike · No sign-in · PHP · Kilometers</Text>
       </Card>
     </Page>

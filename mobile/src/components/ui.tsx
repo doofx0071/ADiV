@@ -20,6 +20,7 @@ export function Page({
   eyebrow,
   children,
   scroll = true,
+  immersive = false,
   back = false,
   right,
 }: React.PropsWithChildren<{
@@ -27,11 +28,14 @@ export function Page({
   subtitle?: string;
   eyebrow?: string;
   scroll?: boolean;
+  immersive?: boolean;
   back?: boolean;
   right?: React.ReactNode;
 }>) {
   const { colors } = useAppTheme();
-  const body = (
+  const body = immersive ? (
+    <View style={styles.immersivePageContent}>{children}</View>
+  ) : (
     <View style={styles.pageContent}>
       {(title || back || right) && (
         <View style={styles.headerRow}>
@@ -60,8 +64,8 @@ export function Page({
   return (
     // Top edge is owned by the root layout's persistent brand header —
     // pages transition beneath it without the header animating.
-    <SafeAreaView edges={["left", "right"]} style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      {scroll ? (
+    <SafeAreaView edges={immersive ? [] : ["left", "right"]} style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      {scroll && !immersive ? (
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           {body}
         </ScrollView>
@@ -212,6 +216,7 @@ export function colorsForStatus(colors: AppColors, status: string) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
+  immersivePageContent: { flex: 1 },
   scrollContent: { paddingBottom: 28 },
   pageContent: { paddingHorizontal: 18, paddingTop: 10, gap: 16 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 54 },

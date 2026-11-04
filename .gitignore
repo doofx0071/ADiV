@@ -16,6 +16,9 @@
 /playwright-report/
 /backups/
 
+# Large local OSM extracts and coastline inputs used to generate offline packs
+/work/offline-data/
+
 # next.js
 /.next/
 /out/

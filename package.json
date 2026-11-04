@@ -61,5 +61,8 @@
   "trustedDependencies": [
     "sharp",
     "unrs-resolver"
-  ]
+  ],
+  "patchedDependencies": {
+    "@maplibre/maplibre-react-native@11.5.1": "patches/@maplibre%2Fmaplibre-react-native@11.5.1.patch"
+  }
 }

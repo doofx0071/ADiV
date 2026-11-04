@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Image, Platform, Pressable, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { Camera, ImagePlus, X } from "lucide-react-native";
@@ -11,6 +11,7 @@ import { AppButton, Card, ChoiceRow, Field, LoadingState, Page } from "@/compone
 import { DateField, TimeField } from "@/components/date-field";
 import { buildRideInterval, dateStartMs, numberOrUndefined, rideDurationLabel } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 
 type LogType = "ride" | "fuel" | "maintenance" | "expense";
 type Photo = { uri: string; name: string; type: string; size: number; storageId: Id<"_storage"> };
@@ -23,7 +24,7 @@ export default function LogScreen() {
   const type = typeParam as LogType;
   const isTypeValid = type === "ride" || type === "fuel" || type === "maintenance" || type === "expense";
   const isHistory = type === "maintenance" && mode === "history";
-  const maintenanceItems = useQuery(api.maintenance.getMaintenanceItems);
+  const maintenanceItems = useShareSafeQuery(api.maintenance.getMaintenanceItems);
   const createUploadUrl = useMutation(api.files.generateUploadUrl);
   const registerFile = useMutation(api.files.registerFile);
   const logRide = useMutation(api.rides.logRide);

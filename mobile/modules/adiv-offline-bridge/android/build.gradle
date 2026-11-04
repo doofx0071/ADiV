@@ -1,0 +1,29 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+version = "1.0.0"
+
+expoModule {
+  v2 true
+}
+
+def targetSdk = rootProject.ext.has('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 36
+def ndkSuffix = targetSdk >= 35 ? '-ndk27' : ''
+
+android {
+  namespace 'expo.modules.adivofflinebridge'
+  compileSdk rootProject.ext.compileSdkVersion
+
+  defaultConfig {
+    minSdk 24
+  }
+}
+
+dependencies {
+  implementation "com.mapbox.navigationcore:navigation${ndkSuffix}:3.33.1"
+  implementation("com.mapbox.maps:android${ndkSuffix}") {
+    version { strictly '11.33.1' }
+  }
+}

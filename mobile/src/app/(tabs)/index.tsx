@@ -3,13 +3,14 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, View } from "react-na
 import { Image } from "expo-image";
 import { AppText as Text } from "@/components/app-text";
 import { router } from "expo-router";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { Activity, ArrowRight, Camera, CircleDollarSign, Disc, Fuel, Plus, Route, Wrench, X } from "lucide-react-native";
 import { api } from "@/lib/api";
 import { AppButton, Banner, Card, Field, LoadingState, Page, SectionTitle, StatCard, colorsForStatus } from "@/components/ui";
 import { evaluateMaintenanceItems, summarizeMaintenanceEvaluations } from "@/lib/shared";
 import { km, php } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 import alternateLogo from "../../../assets/images/ADiV-shesh.png";
 
 const logRoutes = [
@@ -20,13 +21,13 @@ const logRoutes = [
 ] as const;
 
 export default function DashboardScreen() {
-  const bike = useQuery(api.bike.getBike);
-  const items = useQuery(api.maintenance.getMaintenanceItems);
-  const rideStats = useQuery(api.rides.getRideStats, {});
-  const fuelStats = useQuery(api.fuel.getFuelStats, {});
-  const fuelInsights = useQuery(api.fuel.getFuelInsights, {});
-  const maintenanceStats = useQuery(api.maintenance.getMaintenanceStats, {});
-  const expenseStats = useQuery(api.expenses.getExpenseStats, {});
+  const bike = useShareSafeQuery(api.bike.getBike);
+  const items = useShareSafeQuery(api.maintenance.getMaintenanceItems);
+  const rideStats = useShareSafeQuery(api.rides.getRideStats, {});
+  const fuelStats = useShareSafeQuery(api.fuel.getFuelStats, {});
+  const fuelInsights = useShareSafeQuery(api.fuel.getFuelInsights, {});
+  const maintenanceStats = useShareSafeQuery(api.maintenance.getMaintenanceStats, {});
+  const expenseStats = useShareSafeQuery(api.expenses.getExpenseStats, {});
   const updateOdometer = useMutation(api.bike.updateOdometer);
   const [odoValue, setOdoValue] = useState("");
   const [odoError, setOdoError] = useState<string | null>(null);
@@ -113,7 +114,7 @@ export default function DashboardScreen() {
           {logRoutes.map(({ type, label, icon: Icon }) => (
             <AppButton key={type} label={label} onPress={() => router.push({ pathname: "/log/[type]", params: { type } })} compact variant="outline" icon={<Icon size={16} color={colors.primary} />} />
           ))}
-          <AppButton label="Record GPS" onPress={() => router.push("/record")} compact variant="outline" icon={<Disc size={16} color={colors.primary} />} />
+          <AppButton label="Choose ride mode" onPress={() => router.push("/rides")} compact variant="outline" icon={<Disc size={16} color={colors.primary} />} />
         </View>
       </View>
 

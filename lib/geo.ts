@@ -62,9 +62,69 @@ export function trackDistanceKm(points: TrackPoint[]): number {
   let meters = 0;
   for (let i = 1; i < points.length; i++) {
     if (points[i].runId !== points[i - 1].runId) continue;
-    meters += haversineMeters(points[i - 1], points[i]);
+    const previous = points[i - 1];
+    const current = points[i];
+    const segmentMeters = haversineMeters(previous, current);
+    const uncertainty = Math.hypot(previous.accuracy ?? 10, current.accuracy ?? 10);
+    const noiseFloorMeters = Math.max(8, Math.min(30, uncertainty * 0.65));
+    if (segmentMeters <= noiseFloorMeters) continue;
+
+    const speedConfirmsMovement =
+      isReliableSpeed(previous) &&
+      isReliableSpeed(current) &&
+      previous.speed! >= 1.5 &&
+      current.speed! >= 1.5;
+    const before = points[i - 2];
+    const after = points[i + 1];
+    const previousDisplacementConfirmsMovement =
+      before?.runId === current.runId &&
+      haversineMeters(before, current) >= segmentMeters * 0.75;
+    const nextDisplacementConfirmsMovement =
+      after?.runId === current.runId &&
+      haversineMeters(previous, after) >= segmentMeters * 0.75;
+
+    // Require movement corroboration so stationary GPS drift does not add to
+    // ride distance and inflate average speed.
+    if (speedConfirmsMovement || previousDisplacementConfirmsMovement || nextDisplacementConfirmsMovement) {
+      meters += segmentMeters;
+    }
   }
   return meters / 1000;
+}
+
+/**
+ * Return a conservative peak GPS speed. A single isolated receiver spike is
+ * ignored; nearby fixes in the same recording run confirm the reading.
+ */
+export function trackMaxSpeedKmh(points: TrackPoint[]): number {
+  let maximumMetersPerSecond = 0;
+  for (let index = 0; index < points.length; index++) {
+    const point = points[index];
+    if (!isReliableSpeed(point)) continue;
+    const neighbors = points.slice(Math.max(0, index - 1), Math.min(points.length, index + 2))
+      .filter((candidate) =>
+        candidate.runId === point.runId &&
+        Math.abs(candidate.ts - point.ts) <= 15_000 &&
+        isReliableSpeed(candidate),
+      )
+      .map((candidate) => candidate.speed!)
+      .sort((left, right) => left - right);
+    if (neighbors.length >= 2) {
+      const candidateSpeed = neighbors.length === 2
+        ? Math.abs(neighbors[1] - neighbors[0]) <= 12
+          ? (neighbors[0] + neighbors[1]) / 2
+          : neighbors[0]
+        : neighbors[Math.floor(neighbors.length / 2)];
+      maximumMetersPerSecond = Math.max(maximumMetersPerSecond, candidateSpeed);
+    } else if (point.accuracy !== undefined && point.accuracy <= 10) {
+      maximumMetersPerSecond = Math.max(maximumMetersPerSecond, point.speed!);
+    }
+  }
+  return maximumMetersPerSecond * 3.6;
+}
+
+function isReliableSpeed(point: TrackPoint): boolean {
+  return typeof point.speed === "number" && Number.isFinite(point.speed) && point.speed >= 0 && point.speed <= 50;
 }
 
 /**

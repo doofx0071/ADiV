@@ -1,19 +1,20 @@
 import { Alert, Pressable, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { Pencil, Plus, Trash2, Wrench } from "lucide-react-native";
 import { api, type Id } from "@/lib/api";
 import { AppButton, Card, EmptyState, LoadingState, Page } from "@/components/ui";
 import { useAppTheme } from "@/lib/theme";
 import { dateLabel, km, php } from "@/lib/format";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 
 export default function MaintenanceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const itemId = id as Id<"maintenanceItems">;
-  const items = useQuery(api.maintenance.getMaintenanceItems);
-  const logs = useQuery(api.maintenance.getMaintenanceLogs, { itemId, limit: 100 });
-  const hasLogs = useQuery(api.maintenance.hasMaintenanceLogs, { itemId });
+  const items = useShareSafeQuery(api.maintenance.getMaintenanceItems);
+  const logs = useShareSafeQuery(api.maintenance.getMaintenanceLogs, { itemId, limit: 100 });
+  const hasLogs = useShareSafeQuery(api.maintenance.hasMaintenanceLogs, { itemId });
   const deleteItem = useMutation(api.maintenance.deleteMaintenanceItem);
   const deleteLog = useMutation(api.maintenance.deleteMaintenanceLog);
   const { colors } = useAppTheme();

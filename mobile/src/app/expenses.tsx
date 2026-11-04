@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Alert, Modal, Pressable, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router } from "expo-router";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { Image } from "expo-image";
 import { Pencil, Plus, Trash2, X } from "lucide-react-native";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
@@ -10,10 +10,11 @@ import { api, type Id } from "@/lib/api";
 import { AppButton, Card, ChoiceRow, EmptyState, LoadingState, Page } from "@/components/ui";
 import { dateLabel, php } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 
 export default function ExpensesScreen() {
-  const expenses = useQuery(api.expenses.getExpenses, { limit: 1000 });
-  const stats = useQuery(api.expenses.getExpenseStats);
+  const expenses = useShareSafeQuery(api.expenses.getExpenses, { limit: 1000 });
+  const stats = useShareSafeQuery(api.expenses.getExpenseStats);
   const deleteExpense = useMutation(api.expenses.deleteExpense);
   const [filter, setFilter] = useState<string>("all");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -24,7 +25,7 @@ export default function ExpensesScreen() {
   const receiptIds = (expenses ?? [])
     .map((expense) => expense.receiptPhoto)
     .filter((id): id is Id<"_storage"> => typeof id === "string");
-  const fileUrls = useQuery(
+  const fileUrls = useShareSafeQuery(
     api.files.getFileUrls,
     receiptIds.length > 0 ? { storageIds: receiptIds } : { storageIds: [] }
   );

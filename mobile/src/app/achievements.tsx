@@ -2,12 +2,13 @@ import { useEffect, useMemo } from "react";
 import { View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { Award, Camera, Flame, Fuel, Route, Wallet, Wrench } from "lucide-react-native";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/lib/api";
 import { ACHIEVEMENT_DEFS } from "@/lib/shared";
 import { Card, LoadingState, Page } from "@/components/ui";
 import { dateLabel } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 
 const iconFor = (icon: string) => {
   const props = { size: 20, color: "#e62025" };
@@ -22,8 +23,8 @@ const iconFor = (icon: string) => {
 
 export default function AchievementsScreen() {
   const checkAchievements = useMutation(api.achievements.checkAchievements);
-  const achievements = useQuery(api.achievements.getAchievements);
-  const stats = useQuery(api.achievements.getAchievementStats);
+  const achievements = useShareSafeQuery(api.achievements.getAchievements);
+  const stats = useShareSafeQuery(api.achievements.getAchievementStats);
   const { colors } = useAppTheme();
   useEffect(() => { void checkAchievements({}).catch(() => undefined); }, [checkAchievements]);
   const unlocked = useMemo(() => new Map((achievements ?? []).map((entry) => [entry.type, entry])), [achievements]);

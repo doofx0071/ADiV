@@ -25,6 +25,7 @@ export default function TabLayout() {
       <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: ({ color, size }) => <House color={color} size={size} /> }} />
       <Tabs.Screen name="maintenance" options={{ title: "Service", tabBarIcon: ({ color, size }) => <Wrench color={color} size={size} /> }} />
       <Tabs.Screen name="rides" options={{ title: "Rides", tabBarIcon: ({ color, size }) => <Route color={color} size={size} /> }} />
+      <Tabs.Screen name="history" options={{ href: null }} />
       <Tabs.Screen name="analytics" options={{ title: "Insights", tabBarIcon: ({ color, size }) => <ChartNoAxesCombined color={color} size={size} /> }} />
       <Tabs.Screen name="more" options={{ title: "More", tabBarIcon: ({ color, size }) => <Menu color={color} size={size} /> }} />
     </Tabs>

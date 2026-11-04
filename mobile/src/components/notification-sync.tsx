@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { AppState } from "react-native";
-import { useQuery } from "convex/react";
 import { api } from "@/lib/api";
 import { syncDailyReminder, subscribeReminderSettings } from "@/lib/notifications";
 import { evaluateMaintenanceItems } from "@/lib/shared";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 
 export function NotificationSync() {
-  const bike = useQuery(api.bike.getBike);
-  const items = useQuery(api.maintenance.getMaintenanceItems);
+  const bike = useShareSafeQuery(api.bike.getBike);
+  const items = useShareSafeQuery(api.maintenance.getMaintenanceItems);
   const [isActive, setIsActive] = useState(AppState.currentState === "active");
   const [settingsVersion, setSettingsVersion] = useState(0);
 

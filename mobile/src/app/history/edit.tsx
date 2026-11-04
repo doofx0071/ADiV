@@ -2,12 +2,13 @@ import { useMemo, useState } from "react";
 import { View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api, type Doc, type Id } from "@/lib/api";
 import { AppButton, Card, Field, LoadingState, Page } from "@/components/ui";
 import { DateField, TimeField } from "@/components/date-field";
 import { buildRideInterval, dateStartMs, numberOrUndefined, rideDurationLabel } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 
 type EntryType = "ride" | "fuel" | "maintenance" | "expense";
 const categories = ["Parts", "Accessories", "Insurance", "Parking", "Tolls", "Cleaning", "Tools", "Other"];
@@ -15,10 +16,10 @@ const categories = ["Parts", "Accessories", "Insurance", "Parking", "Tolls", "Cl
 export default function EditHistoryScreen() {
   const { type: typeParam, id } = useLocalSearchParams<{ type: string; id: string }>();
   const type = typeParam as EntryType;
-  const rides = useQuery(api.rides.getRides, type === "ride" ? { limit: 1000 } : "skip");
-  const fuelLogs = useQuery(api.fuel.getFuelLogs, type === "fuel" ? { limit: 1000 } : "skip");
-  const maintenanceLogs = useQuery(api.maintenance.getAllMaintenanceLogs, type === "maintenance" ? { limit: 1000 } : "skip");
-  const expenses = useQuery(api.expenses.getExpenses, type === "expense" ? { limit: 1000 } : "skip");
+  const rides = useShareSafeQuery(api.rides.getRides, type === "ride" ? { limit: 1000 } : "skip");
+  const fuelLogs = useShareSafeQuery(api.fuel.getFuelLogs, type === "fuel" ? { limit: 1000 } : "skip");
+  const maintenanceLogs = useShareSafeQuery(api.maintenance.getAllMaintenanceLogs, type === "maintenance" ? { limit: 1000 } : "skip");
+  const expenses = useShareSafeQuery(api.expenses.getExpenses, type === "expense" ? { limit: 1000 } : "skip");
   const updateRide = useMutation(api.rides.updateRide);
   const updateFuel = useMutation(api.fuel.updateFuelLog);
   const updateMaintenance = useMutation(api.maintenance.updateMaintenanceLog);

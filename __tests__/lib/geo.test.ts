@@ -5,6 +5,7 @@ import {
   haversineMeters,
   shouldAcceptPoint,
   trackDistanceKm,
+  trackMaxSpeedKmh,
   type TrackPoint,
 } from "../../lib/geo";
 
@@ -66,6 +67,46 @@ describe("trackDistanceKm", () => {
     const km = trackDistanceKm(points);
     expect(km).toBeGreaterThan(0.22);
     expect(km).toBeLessThan(0.25);
+  });
+
+  it("filters stationary GPS jitter below its accuracy noise floor", () => {
+    const points: TrackPoint[] = [
+      { lat: 14.5995, lon: 120.9842, ts: 0, runId: 1 },
+      { lat: 14.5995, lon: 120.98422, ts: 5000, runId: 1 },
+      { lat: 14.5995, lon: 120.98419, ts: 10_000, runId: 1 },
+    ];
+    expect(trackDistanceKm(points)).toBe(0);
+  });
+
+  it("does not count a stationary GPS drift out and back as ride distance", () => {
+    const points: TrackPoint[] = [
+      { lat: 14.5995, lon: 120.9842, accuracy: 6, speed: 0.2, ts: 0, runId: 1 },
+      { lat: 14.5995, lon: 120.98428, accuracy: 6, speed: 0.1, ts: 5000, runId: 1 },
+      { lat: 14.5995, lon: 120.9842, accuracy: 6, speed: 0.3, ts: 10_000, runId: 1 },
+    ];
+    expect(trackDistanceKm(points)).toBe(0);
+  });
+
+  it("counts sustained displacement even when GPS speed is missing", () => {
+    const points: TrackPoint[] = [
+      { lat: 14.5995, lon: 120.9842, accuracy: 6, ts: 0, runId: 1 },
+      { lat: 14.5995, lon: 120.9844, accuracy: 6, ts: 5000, runId: 1 },
+      { lat: 14.5995, lon: 120.9846, accuracy: 6, ts: 10_000, runId: 1 },
+    ];
+    expect(trackDistanceKm(points)).toBeGreaterThan(0.03);
+  });
+});
+
+describe("trackMaxSpeedKmh", () => {
+  it("rejects an isolated GPS speed spike using adjacent fixes", () => {
+    const points = [4, 5, 48, 6, 7].map((speed, index) =>
+      point({ ts: index * 5000, runId: 1, speed }),
+    );
+    expect(trackMaxSpeedKmh(points)).toBeCloseTo(7 * 3.6, 1);
+  });
+
+  it("does not trust a single low-accuracy speed sample", () => {
+    expect(trackMaxSpeedKmh([point({ speed: 35, accuracy: 40 })])).toBe(0);
   });
 });
 

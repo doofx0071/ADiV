@@ -3,12 +3,12 @@ import { Pressable, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router } from "expo-router";
 import { Plus, Wrench } from "lucide-react-native";
-import { useQuery } from "convex/react";
 import { api } from "@/lib/api";
 import { AppButton, Banner, Card, ChoiceRow, EmptyState, LoadingState, Page, colorsForStatus } from "@/components/ui";
 import { evaluateMaintenanceItems, summarizeMaintenanceEvaluations } from "@/lib/shared";
 import { km, dateLabel } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
+import { useShareSafeQuery } from "@/lib/share-safe-query";
 
 type Filter = "all" | "overdue" | "due" | "upcoming" | "needs-history" | "clear";
 const filters: { value: Filter; label: string }[] = [
@@ -17,8 +17,8 @@ const filters: { value: Filter; label: string }[] = [
 ];
 
 export default function MaintenanceScreen() {
-  const bike = useQuery(api.bike.getBike);
-  const items = useQuery(api.maintenance.getMaintenanceItems);
+  const bike = useShareSafeQuery(api.bike.getBike);
+  const items = useShareSafeQuery(api.maintenance.getMaintenanceItems);
   const [filter, setFilter] = useState<Filter>("all");
   const { colors } = useAppTheme();
   const evaluations = useMemo(() => bike && items ? evaluateMaintenanceItems(items, bike.currentOdometer, new Date()) : [], [bike, items]);
