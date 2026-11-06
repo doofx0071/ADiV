@@ -226,10 +226,11 @@ export async function loadActiveRide(): Promise<ActiveRideState | null> {
   return mapActiveRide(row, points);
 }
 
-/** Close a recording run only after the native location task is confirmed gone. */
+/** Close a missing native run using its start time, not the spacing of GPS fixes. */
 export async function recoverInterruptedActiveRide(): Promise<ActiveRideState | null> {
   const db = await getDatabase();
   let recoveredId: string | null = null;
+  const now = Date.now();
   await db.withExclusiveTransactionAsync(async (tx) => {
     const active = await tx.getFirstAsync<{ value: string }>(
       "SELECT value FROM local_state WHERE key = ?",
@@ -238,31 +239,16 @@ export async function recoverInterruptedActiveRide(): Promise<ActiveRideState | 
     if (!active) return;
     const row = await tx.getFirstAsync<RideRow>("SELECT * FROM rides WHERE id = ?", active.value);
     if (!row || row.status !== "recording") return;
-    const rows = await tx.getAllAsync<{
-      timestamp_ms: number;
-      lat: number;
-      lon: number;
-      accuracy_m: number | null;
-      speed_mps: number | null;
-      run_id: number;
-    }>(
-      `SELECT timestamp_ms, lat, lon, accuracy_m, speed_mps, run_id
-       FROM ride_points WHERE ride_id = ? ORDER BY seq LIMIT 50000`,
-      row.id,
-    );
-    const points = rows.map((point) => ({
-      ts: point.timestamp_ms,
-      lat: point.lat,
-      lon: point.lon,
-      accuracy: point.accuracy_m ?? undefined,
-      speed: point.speed_mps ?? undefined,
-      runId: point.run_id,
-    }));
-    const elapsedMs = Math.max(row.elapsed_ms, activeElapsedFromPoints(points));
+    // Screen-off can suspend GPS delivery without ending the ride. GPS point
+    // spacing is not a clock: a run with sparse fixes can span minutes while
+    // containing only one accepted point. Preserve the full active interval.
+    const elapsedMs = row.elapsed_ms + (row.run_started_at_ms
+      ? Math.max(0, now - row.run_started_at_ms)
+      : 0);
     await tx.runAsync(
       "UPDATE rides SET status = 'paused', run_started_at_ms = NULL, elapsed_ms = ?, interrupted = 1, modified_at_ms = ? WHERE id = ?",
       elapsedMs,
-      Date.now(),
+      now,
       row.id,
     );
     recoveredId = row.id;
@@ -281,6 +267,11 @@ export async function startOrResumeRide(): Promise<ActiveRideState> {
   const row = id ? await db.getFirstAsync<RideRow>("SELECT * FROM rides WHERE id = ?", id) : null;
 
   if (row && row.status === "completed") throw new Error("End or save the current ride before starting another.");
+  // Starting is idempotent for an already-active ride. In particular, do not
+  // overwrite run_started_at_ms: that would reset the visible ride clock.
+  if (row && row.status === "recording") {
+    return (await loadActiveRideForId(db, row.id))!;
+  }
   if (!row) {
     id = newRideId();
     await db.withExclusiveTransactionAsync(async (tx) => {
@@ -314,6 +305,42 @@ export async function startOrResumeRide(): Promise<ActiveRideState> {
     );
   }
   return (await loadActiveRideForId(db, id!))!;
+}
+
+/** Roll to a new GPS segment after a lost task while keeping the ride recording. */
+export async function continueRecordingAfterTrackingGap(): Promise<ActiveRideState | null> {
+  const db = await getDatabase();
+  let continuedId: string | null = null;
+  const now = Date.now();
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    const active = await tx.getFirstAsync<{ value: string }>(
+      "SELECT value FROM local_state WHERE key = ?",
+      ACTIVE_RIDE_KEY,
+    );
+    if (!active) return;
+    const row = await tx.getFirstAsync<RideRow>("SELECT * FROM rides WHERE id = ?", active.value);
+    if (!row || row.status !== "recording") return;
+    const elapsedMs = row.elapsed_ms + (row.run_started_at_ms
+      ? Math.max(0, now - row.run_started_at_ms)
+      : 0);
+    const currentRunHasPoints = await tx.getFirstAsync<{ present: number }>(
+      "SELECT 1 AS present FROM ride_points WHERE ride_id = ? AND run_id = ? LIMIT 1",
+      row.id,
+      row.run_id,
+    );
+    const runId = currentRunHasPoints ? row.run_id + 1 : row.run_id;
+    await tx.runAsync(
+      `UPDATE rides SET status = 'recording', run_id = ?, run_started_at_ms = ?,
+       elapsed_ms = ?, interrupted = 1, modified_at_ms = ? WHERE id = ?`,
+      runId,
+      now,
+      elapsedMs,
+      now,
+      row.id,
+    );
+    continuedId = row.id;
+  });
+  return continuedId ? loadActiveRideForId(db, continuedId) : null;
 }
 
 async function loadActiveRideForId(db: SQLite.SQLiteDatabase, id: string): Promise<ActiveRideState | null> {

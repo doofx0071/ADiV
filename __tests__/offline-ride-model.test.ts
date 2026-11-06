@@ -1,11 +1,27 @@
-import { buildRideSummaryPayload, restoredRecorderPhase } from "../mobile/src/lib/ride-model";
+import { activeRideElapsedMs, buildRideSummaryPayload, restoredRecorderPhase } from "../mobile/src/lib/ride-model";
 import { describe, expect, it } from "vitest";
 
 describe("offline ride summary contract", () => {
-  it("recovers interrupted sessions without claiming they finished", () => {
-    expect(restoredRecorderPhase("recording", true)).toBe("recovered");
+  it("keeps an active recording active across route and app restoration", () => {
+    expect(restoredRecorderPhase("recording", false)).toBe("recording");
+    expect(restoredRecorderPhase("recording", true)).toBe("recording");
+    expect(restoredRecorderPhase("paused", true)).toBe("recovered");
     expect(restoredRecorderPhase("paused", false)).toBe("paused");
     expect(restoredRecorderPhase("completed", false)).toBe("summary");
+  });
+
+  it("keeps the current recording segment in elapsed ride time", () => {
+    const now = 1_700_000_120_000;
+    expect(activeRideElapsedMs({
+      elapsedMs: 45_000,
+      runStartedAt: now - 75_000,
+      status: "recording",
+    }, now)).toBe(120_000);
+    expect(activeRideElapsedMs({
+      elapsedMs: 45_000,
+      runStartedAt: now - 75_000,
+      status: "paused",
+    }, now)).toBe(45_000);
   });
 
   it("creates a summary upload without GPS geometry", () => {

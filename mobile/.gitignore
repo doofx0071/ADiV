@@ -48,6 +48,7 @@ example
 
 # Locally generated APKs and offline map packs (see scripts/offline-data/README.md)
 /builds/
+/build-*.apk
 
 # Local native-module build output
 /modules/**/android/build/

@@ -93,6 +93,8 @@ export default defineSchema({
     route: v.optional(v.string()),
     trackedDistance: v.optional(v.number()),
     maxSpeedKmh: v.optional(v.number()),
+    // GPS ride estimates can be kept separate from the confirmed bike reading.
+    updateCurrentOdometer: v.optional(v.boolean()),
     notes: v.optional(v.string()),
   })
     .index("by_date", ["date"])

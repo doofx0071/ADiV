@@ -6,7 +6,7 @@ import { router, useFocusEffect, useGlobalSearchParams, useLocalSearchParams } f
 import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
 import * as Network from "expo-network";
-import { Disc, Expand, Eye, EyeOff, ExternalLink, Flag, MapPin, Minimize2, Navigation, Search, Square, X } from "lucide-react-native";
+import { Check, Disc, Expand, Eye, EyeOff, ExternalLink, Flag, MapPin, Minimize2, Navigation, Search, Square, X } from "lucide-react-native";
 import { api } from "@/lib/api";
 import { AppButton, Banner, Field, LoadingState, Page, StatCard } from "@/components/ui";
 import { km } from "@/lib/format";
@@ -51,7 +51,8 @@ import {
   subscribeToTrack,
 } from "@/lib/ride-tracker";
 import { saveRideSummary } from "@/lib/local-ride-store";
-import { buildRideSummaryPayload, restoredRecorderPhase, type RecorderPhase, type RideMode } from "@/lib/ride-model";
+import { clearActiveRideRoute, loadActiveRideRoute, saveActiveRideRoute } from "@/lib/active-ride-route";
+import { activeRideElapsedMs, buildRideSummaryPayload, restoredRecorderPhase, type RecorderPhase, type RideMode } from "@/lib/ride-model";
 import { requestRideNotificationPermission } from "@/lib/ride-notification";
 import { useShareSafeQuery } from "@/lib/share-safe-query";
 
@@ -73,6 +74,7 @@ export default function RecordScreen() {
   const globalParams = useGlobalSearchParams<{ rideId?: string }>();
   const bike = useShareSafeQuery(api.bike.getBike);
   const [ready, setReady] = useState(false);
+  const [refreshingRide, setRefreshingRide] = useState(false);
   const [phase, setPhase] = useState<RecorderPhase>("idle");
   const [points, setPoints] = useState<TrackPoint[]>([]);
   const [rideId, setRideId] = useState<string | null>(null);
@@ -85,6 +87,7 @@ export default function RecordScreen() {
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [startOdometerInput, setStartOdometerInput] = useState("");
+  const [updateCurrentOdometer, setUpdateCurrentOdometer] = useState(false);
   const [notes, setNotes] = useState("");
   const [restoredMode, setRestoredMode] = useState<RideMode | null>(null);
 
@@ -102,6 +105,7 @@ export default function RecordScreen() {
   const [destination, setDestination] = useState<[number, number] | null>(null);
   const [planned, setPlanned] = useState<PlannedRoute | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
+  const [routeNeedsRefresh, setRouteNeedsRefresh] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
@@ -127,6 +131,8 @@ export default function RecordScreen() {
   const announcedStepRef = useRef<{ planned: PlannedRoute; stepIndex: number } | null>(null);
   const latestPlannedRef = useRef(planned);
   const resumeGuidanceAfterPauseRef = useRef(false);
+  const routeRestoreAttemptedRef = useRef(false);
+  const rideRefreshCountRef = useRef(0);
 
   const stopGuidance = useCallback(() => {
     routeAbortRef.current?.abort();
@@ -157,6 +163,8 @@ export default function RecordScreen() {
     setPlanning(true);
     setDestination(null);
     setPlanned(null);
+    setRouteNeedsRefresh(false);
+    void clearActiveRideRoute().catch(() => undefined);
     setStepIndex(0);
     setError("");
   }, [stopGuidance]);
@@ -253,6 +261,8 @@ export default function RecordScreen() {
         setRideEndedAt(restored.endedAt);
         setRideElapsedMs(restored.elapsedMs);
         setRideRunStartedAt(restored.runStartedAt);
+        setNow(Date.now());
+        setError(restored.trackingIssue ?? "");
         const restoredPhase = restoredRecorderPhase(restored.status, restored.interrupted);
         setPhase(restoredPhase);
         if (restoredPhase === "summary" && navigationFirst) {
@@ -270,24 +280,33 @@ export default function RecordScreen() {
   }, [bike, navigationFirst]);
 
   const refreshRideFromStore = useCallback(async () => {
-    const restored = await reconcileActiveRecording() ?? await loadActiveRide();
-    if (!restored) return;
-    pointsRef.current = restored.points;
-    setPoints(restored.points);
-    setRideId(restored.id);
-    setRideStartedAt(restored.startedAt);
-    setRideEndedAt(restored.endedAt);
-    setRideElapsedMs(restored.elapsedMs);
-    setRideRunStartedAt(restored.runStartedAt);
-    const restoredPhase = restoredRecorderPhase(restored.status, restored.interrupted);
-    setPhase(restoredPhase);
-    if (restoredPhase === "summary" && navigationFirst) {
-      setSummaryCameraMode("route");
-      setFollowUser(true);
-      setFullscreenMap(true);
-      router.setParams({ fullscreen: "true" });
+    rideRefreshCountRef.current += 1;
+    setRefreshingRide(true);
+    try {
+      const restored = await reconcileActiveRecording() ?? await loadActiveRide();
+      if (!restored) return;
+      pointsRef.current = restored.points;
+      setPoints(restored.points);
+      setRideId(restored.id);
+      setRideStartedAt(restored.startedAt);
+      setRideEndedAt(restored.endedAt);
+      setRideElapsedMs(restored.elapsedMs);
+      setRideRunStartedAt(restored.runStartedAt);
+      setNow(Date.now());
+      setError(restored.trackingIssue ?? "");
+      const restoredPhase = restoredRecorderPhase(restored.status, restored.interrupted);
+      setPhase(restoredPhase);
+      if (restoredPhase === "summary" && navigationFirst) {
+        setSummaryCameraMode("route");
+        setFollowUser(true);
+        setFullscreenMap(true);
+        router.setParams({ fullscreen: "true" });
+      }
+      if (bike) setStartOdometerInput((value) => value || String(Math.round(bike.currentOdometer)));
+    } finally {
+      rideRefreshCountRef.current = Math.max(0, rideRefreshCountRef.current - 1);
+      if (rideRefreshCountRef.current === 0) setRefreshingRide(false);
     }
-    if (bike) setStartOdometerInput((value) => value || String(Math.round(bike.currentOdometer)));
   }, [bike, navigationFirst]);
 
   useFocusEffect(useCallback(() => {
@@ -316,9 +335,11 @@ export default function RecordScreen() {
 
   const stats = useMemo(() => {
     const distanceKm = trackDistanceKm(points);
-    const elapsedMs = phase === "recording" && rideRunStartedAt !== null
-      ? rideElapsedMs + Math.max(0, now - rideRunStartedAt)
-      : rideElapsedMs;
+    const elapsedMs = activeRideElapsedMs({
+      elapsedMs: rideElapsedMs,
+      runStartedAt: rideRunStartedAt,
+      status: phase === "recording" ? "recording" : "paused",
+    }, now);
     const hours = elapsedMs / MS_PER_HOUR;
     const maxSpeedKmh = trackMaxSpeedKmh(points);
     const avgSpeedKmh = hours > 0 ? distanceKm / hours : 0;
@@ -348,7 +369,10 @@ export default function RecordScreen() {
     [points],
   );
 
-  const choosePlace = useCallback(async (place: PlaceResult) => {
+  const choosePlace = useCallback(async (
+    place: PlaceResult,
+    options: { resumeGuidance?: boolean; preservePreviewOnFailure?: boolean } = {},
+  ): Promise<PlannedRoute | null> => {
     searchAbortRef.current?.abort();
     setSearchQuery("");
     setSearchResults([]);
@@ -358,6 +382,11 @@ export default function RecordScreen() {
     const request = new AbortController();
     routeAbortRef.current = request;
     setDestination([place.lon, place.lat]);
+    setPlanned((current) => options.preservePreviewOnFailure ? current : null);
+    setRouteNeedsRefresh(Boolean(options.preservePreviewOnFailure));
+    if (!options.preservePreviewOnFailure) {
+      await saveActiveRideRoute({ destination: place, planned: null }).catch(() => undefined);
+    }
     setFollowUser(false);
     requestAnimationFrame(() => cameraRef.current?.easeTo({ center: [place.lon, place.lat], zoom: 15, duration: 400 }));
     setRouteLoading(true);
@@ -366,20 +395,21 @@ export default function RecordScreen() {
       const network = await Network.getNetworkStateAsync().catch(() => null);
       const offlineOnly = network?.isConnected !== true || network.isInternetReachable === false;
       if (offlineOnly && !isMapboxAndroidReady()) {
-        setPlanned(null);
         setError("Destination selected. Offline turn-by-turn routing needs Mapbox Navigation tiles in an Android build. No online router was used.");
-        return;
+        return null;
       }
       const last = pointsRef.current[pointsRef.current.length - 1];
       const from = last ? ([last.lon, last.lat] as [number, number]) : await currentPosition({ requestPermission: true });
       if (!from) {
         setError("No GPS fix yet — step outside and try again.");
-        return;
+        return null;
       }
       const route = await planRoute(from, [place.lon, place.lat], { signal: request.signal, offlineOnly });
-      if (request.signal.aborted) return;
+      if (request.signal.aborted) return null;
       releaseMapboxRoute(latestPlannedRef.current?.routeId);
       setPlanned(route);
+      setRouteNeedsRefresh(false);
+      await saveActiveRideRoute({ destination: place, planned: route }).catch(() => undefined);
       setMapboxProgress(null);
       setStepIndex(0);
       setFollowUser(false);
@@ -387,11 +417,23 @@ export default function RecordScreen() {
         boundsFor(route.coordinates),
         { padding: { top: 64, right: 28, bottom: 120, left: 28 }, duration: 650 },
       );
+      if (options.resumeGuidance) {
+        if (route.provider === "mapbox-navigation" && route.routeId) {
+          await startMapboxGuidance(route.routeId, route.offlineOnly === true);
+        }
+        setPlanning(false);
+        setGuidanceActive(true);
+        setFollowUser(true);
+        resumeGuidanceAfterPauseRef.current = true;
+      }
+      return route;
     } catch (e) {
       if (!request.signal.aborted) {
-        setPlanned(null);
+        if (!options.preservePreviewOnFailure) setPlanned(null);
+        setRouteNeedsRefresh(Boolean(options.preservePreviewOnFailure));
         setError(e instanceof Error ? e.message : "Could not plan the route.");
       }
+      return null;
     } finally {
       if (routeAbortRef.current === request) {
         routeAbortRef.current = null;
@@ -408,6 +450,42 @@ export default function RecordScreen() {
     },
     [planning, phase, guidanceActive, choosePlace],
   );
+
+  useEffect(() => {
+    if (!ready || !navigationFirst || globalParams.rideId || routeRestoreAttemptedRef.current) return;
+    routeRestoreAttemptedRef.current = true;
+    let current = true;
+    void loadActiveRideRoute().then(async (saved) => {
+      if (!current || !saved) return;
+      setDestination([saved.destination.lon, saved.destination.lat]);
+      setShowMap(true);
+      setStepIndex(0);
+
+      if (saved.planned?.provider === "online-osrm") {
+        setPlanned(saved.planned);
+        setRouteNeedsRefresh(false);
+        setPlanning(phase !== "recording");
+        setGuidanceActive(phase === "recording");
+        resumeGuidanceAfterPauseRef.current = true;
+        if (phase === "recording") setFollowUser(true);
+        return;
+      }
+
+      if (saved.planned) {
+        // Native Mapbox route IDs expire with their navigation session. Keep
+        // the saved preview visible while rebuilding a route to the destination.
+        setPlanned(saved.planned);
+        setRouteNeedsRefresh(true);
+      }
+      resumeGuidanceAfterPauseRef.current = phase !== "recording";
+      setPlanning(phase !== "recording");
+      await choosePlace(saved.destination, {
+        resumeGuidance: phase === "recording",
+        preservePreviewOnFailure: Boolean(saved.planned),
+      });
+    }).catch(() => undefined);
+    return () => { current = false; };
+  }, [ready, navigationFirst, globalParams.rideId, phase, choosePlace]);
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -612,6 +690,9 @@ export default function RecordScreen() {
         if (!isFinalDestination) return;
         stopGuidance();
         setDestination(null);
+        setPlanned(null);
+        setRouteNeedsRefresh(false);
+        void clearActiveRideRoute().catch(() => undefined);
         setMapboxProgress(null);
         setError("You have arrived. Guidance stopped; the same ride is still recording.");
       }),
@@ -639,6 +720,8 @@ export default function RecordScreen() {
       stopGuidance();
       setDestination(null);
       setPlanned(null);
+      setRouteNeedsRefresh(false);
+      void clearActiveRideRoute().catch(() => undefined);
       setStepIndex(0);
       setError("You have arrived. Guidance stopped; the same ride is still recording.");
     }, 0);
@@ -679,6 +762,8 @@ export default function RecordScreen() {
       const nextRoute = await planRoute([last.lon, last.lat], destination, { signal: request.signal, offlineOnly });
       if (request.signal.aborted) return;
       setPlanned(nextRoute);
+      const savedRoute = await loadActiveRideRoute().catch(() => null);
+      if (savedRoute) await saveActiveRideRoute({ ...savedRoute, planned: nextRoute }).catch(() => undefined);
       setMapboxProgress(null);
       setStepIndex(0);
       setError("");
@@ -702,6 +787,10 @@ export default function RecordScreen() {
     : null;
 
   const handleStart = useCallback(async () => {
+    if (navigationFirst && (routeLoading || routeNeedsRefresh)) {
+      setError("Wait for the route to finish updating before starting navigation.");
+      return;
+    }
     setError("");
     setBusy(true);
     try {
@@ -740,7 +829,7 @@ export default function RecordScreen() {
     } finally {
       setBusy(false);
     }
-  }, [navigationFirst, planned, phase]);
+  }, [navigationFirst, planned, phase, routeLoading, routeNeedsRefresh]);
 
   const handlePause = useCallback(async () => {
     routeAbortRef.current?.abort();
@@ -791,6 +880,7 @@ export default function RecordScreen() {
     stopGuidance();
     releaseMapboxRoute(latestPlannedRef.current?.routeId);
     resumeGuidanceAfterPauseRef.current = false;
+    await clearActiveRideRoute().catch(() => undefined);
     await discardRecording();
     pointsRef.current = [];
     setPoints([]);
@@ -800,8 +890,10 @@ export default function RecordScreen() {
     setRideElapsedMs(0);
     setRideRunStartedAt(null);
     setStartOdometerInput("");
+    setUpdateCurrentOdometer(false);
     setNotes("");
     setPlanned(null);
+    setRouteNeedsRefresh(false);
     setDestination(null);
     setFollowUser(true);
     setFullscreenMap(false);
@@ -833,9 +925,11 @@ export default function RecordScreen() {
         startedAt: rideStartedAt,
         endedAt: rideEndedAt,
         elapsedMs: rideElapsedMs,
+        updateCurrentOdometer,
         notes,
       });
       await saveRideSummary(rideId, summary);
+      await clearActiveRideRoute().catch(() => undefined);
       stopGuidance();
       releaseMapboxRoute(latestPlannedRef.current?.routeId);
       if (Platform.OS !== "web") void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -846,7 +940,9 @@ export default function RecordScreen() {
       setRideEndedAt(null);
       setRideElapsedMs(0);
       setRideRunStartedAt(null);
+      setUpdateCurrentOdometer(false);
       setPlanned(null);
+      setRouteNeedsRefresh(false);
       setDestination(null);
       setPlanning(false);
       setStepIndex(0);
@@ -856,7 +952,7 @@ export default function RecordScreen() {
     } finally {
       setBusy(false);
     }
-  }, [points, rideId, rideStartedAt, rideEndedAt, rideElapsedMs, startOdometerInput, notes, stopGuidance]);
+  }, [points, rideId, rideStartedAt, rideEndedAt, rideElapsedMs, startOdometerInput, updateCurrentOdometer, notes, stopGuidance]);
 
   if (!ready) return <Page back><LoadingState label="Preparing the recorder…" /></Page>;
 
@@ -1000,14 +1096,14 @@ export default function RecordScreen() {
 
       {phase !== "idle" && !immersiveMap ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-          <StatCard label="DISTANCE" value={km(stats.distanceKm)} detail="GPS estimate" />
+          <StatCard label="DISTANCE" value={refreshingRide ? "Updating…" : km(stats.distanceKm)} detail="GPS estimate" />
           <StatCard
             label="RIDE TIME"
-            value={`${Math.floor(stats.elapsedMs / 60000)}m ${Math.floor((stats.elapsedMs % 60000) / 1000)}s`}
+            value={refreshingRide ? "Updating…" : `${Math.floor(stats.elapsedMs / 60000)}m ${Math.floor((stats.elapsedMs % 60000) / 1000)}s`}
             detail="Active recording; pauses excluded"
           />
-          <StatCard label="AVG SPEED" value={`${stats.avgSpeedKmh.toFixed(1)} km/h`} detail="Distance over ride time" />
-          <StatCard label="MAX SPEED" value={stats.maxSpeedKmh > 0 ? `${stats.maxSpeedKmh.toFixed(1)} km/h` : "—"} detail="Filtered GPS fixes" />
+          <StatCard label="AVG SPEED" value={refreshingRide ? "Updating…" : `${stats.avgSpeedKmh.toFixed(1)} km/h`} detail="Distance over ride time" />
+          <StatCard label="MAX SPEED" value={refreshingRide ? "Updating…" : stats.maxSpeedKmh > 0 ? `${stats.maxSpeedKmh.toFixed(1)} km/h` : "—"} detail="Filtered GPS fixes" />
         </View>
       ) : null}
 
@@ -1101,7 +1197,7 @@ export default function RecordScreen() {
               <View style={{ gap: 2 }}>
                 <Text style={{ color: colors.foreground, fontSize: 22, fontWeight: "900" }}>{km(stats.distanceKm)}</Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
-                  {Math.floor(stats.elapsedMs / 60000)} min · avg {stats.avgSpeedKmh.toFixed(1)} km/h · max {stats.maxSpeedKmh > 0 ? `${stats.maxSpeedKmh.toFixed(1)} km/h` : "—"}
+                  {refreshingRide ? "Updating ride stats…" : `${Math.floor(stats.elapsedMs / 60000)} min · avg ${stats.avgSpeedKmh.toFixed(1)} km/h · max ${stats.maxSpeedKmh > 0 ? `${stats.maxSpeedKmh.toFixed(1)} km/h` : "—"}`}
                 </Text>
               </View>
               <View style={{ flexDirection: "row", gap: 8 }}>
@@ -1191,7 +1287,7 @@ export default function RecordScreen() {
                 <Banner
                   title="Recording interrupted"
                   body={navigationFirst
-                    ? "Your saved GPS points are restored. Navigation route and guidance do not survive a full app restart; choose a destination again before resuming. The missing interval will stay disconnected."
+                    ? "GPS points are restored. The saved route returns when available; the missing GPS interval stays disconnected."
                     : "Your last saved GPS point was restored. The missing interval is not connected to the next point. Resume, end, or discard this ride."}
                   tone="warning"
                 />
@@ -1199,7 +1295,13 @@ export default function RecordScreen() {
               <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "700" }}>
                 {phase === "recovered" ? "Recovered" : "Paused"} · {km(trackDistanceKm(points))} recorded so far
               </Text>
-              <AppButton label="Resume recording" onPress={() => void handleStart()} busy={busy} icon={<Disc size={17} color="#ffffff" />} />
+              <AppButton
+                label={routeLoading || routeNeedsRefresh ? "Updating route…" : "Resume recording"}
+                onPress={() => void handleStart()}
+                busy={busy || routeLoading}
+                disabled={routeLoading || routeNeedsRefresh}
+                icon={<Disc size={17} color="#ffffff" />}
+              />
               <AppButton label="End ride" variant="outline" onPress={() => void handleFinish()} busy={busy} icon={<Flag size={17} color={colors.primary} />} />
               <AppButton label="Discard recording" variant="danger" onPress={() => void handleDiscard()} busy={busy} />
             </View>
@@ -1208,10 +1310,10 @@ export default function RecordScreen() {
               {navigationFirst ? (
                 <>
                   <AppButton
-                    label={planned ? "Start Navigate + Record" : "Choose a destination to continue"}
+                    label={routeLoading || routeNeedsRefresh ? "Updating route…" : planned ? "Start Navigate + Record" : "Choose a destination to continue"}
                     onPress={() => void handleStart()}
-                    busy={busy}
-                    disabled={!planned}
+                    busy={busy || routeLoading}
+                    disabled={!planned || routeLoading || routeNeedsRefresh}
                     icon={<Disc size={17} color="#ffffff" />}
                   />
                   <AppButton
@@ -1221,6 +1323,8 @@ export default function RecordScreen() {
                       setPlanning(!planning);
                       setDestination(null);
                       setPlanned(null);
+                      setRouteNeedsRefresh(false);
+                      void clearActiveRideRoute().catch(() => undefined);
                       setError("");
                     }}
                     icon={<Navigation size={16} color={colors.primary} />}
@@ -1307,7 +1411,7 @@ export default function RecordScreen() {
         <View style={{ gap: 12 }}>
           <Banner
             title="Ride finished"
-            body={`${km(trackDistanceKm(points))} tracked across ${points.length} GPS points. Enter the odometer reading from your dash, then save.`}
+            body={`${km(trackDistanceKm(points))} tracked across ${points.length} GPS points. Choose whether to add this GPS estimate to the bike's current odometer.`}
             tone="success"
           />
           <Field
@@ -1318,8 +1422,27 @@ export default function RecordScreen() {
             placeholder={bike ? String(Math.round(bike.currentOdometer)) : "0"}
           />
           <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
-            End odometer will be {startOdometerInput ? km(Number(startOdometerInput) + trackDistanceKm(points)) : "—"} (start + GPS distance).
+            Estimated end reading: {startOdometerInput ? km(Number(startOdometerInput) + trackDistanceKm(points)) : "—"} (start + GPS distance).
           </Text>
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: updateCurrentOdometer }}
+            accessibilityLabel="Add GPS ride distance to the current odometer"
+            onPress={() => setUpdateCurrentOdometer((value) => !value)}
+            style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 12 }}
+          >
+            <View style={{ width: 22, height: 22, borderWidth: 1.5, borderColor: updateCurrentOdometer ? colors.primary : colors.border, backgroundColor: updateCurrentOdometer ? colors.primary : "transparent", alignItems: "center", justifyContent: "center" }}>
+              {updateCurrentOdometer ? <Check size={15} color="#ffffff" strokeWidth={3} /> : null}
+            </View>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>Add GPS distance to current odometer</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
+                {updateCurrentOdometer
+                  ? "The bike odometer will advance by this GPS estimate when the ride syncs."
+                  : "Off: save the ride distance, but keep the bike odometer unchanged until you update it at refueling or service."}
+              </Text>
+            </View>
+          </Pressable>
           <Field label="Notes" value={notes} onChangeText={setNotes} multiline />
           <AppButton label="Save ride" onPress={() => void handleSave()} busy={busy} icon={<Flag size={17} color="#ffffff" />} />
           <AppButton label="Discard ride" variant="danger" onPress={() => void handleDiscard()} busy={busy} />

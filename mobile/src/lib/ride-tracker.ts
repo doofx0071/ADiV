@@ -20,6 +20,8 @@ export async function reconcileActiveRecording(): Promise<ActiveRideState | null
   return null;
 }
 
+export async function refreshActiveRideNotification(): Promise<void> {}
+
 export async function getActiveRideMode(): Promise<RideMode | null> { return null; }
 
 export async function startRecording(_mode?: RideMode): Promise<ActiveRideState> {
@@ -35,8 +37,6 @@ export async function finishRecording(): Promise<ActiveRideState | null> {
 }
 
 export async function discardRecording(): Promise<void> {}
-
-export async function handleRideNotificationAction(_action: "pause" | "resume" | "end" | "open"): Promise<void> {}
 
 export async function currentPosition(_options: { requestPermission?: boolean } = {}): Promise<[number, number] | null> {
   return null;

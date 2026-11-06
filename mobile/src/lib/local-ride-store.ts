@@ -16,6 +16,10 @@ export async function recoverInterruptedActiveRide(): Promise<ActiveRideState | 
   return null;
 }
 
+export async function continueRecordingAfterTrackingGap(): Promise<ActiveRideState | null> {
+  return null;
+}
+
 export async function startOrResumeRide(): Promise<ActiveRideState> {
   throw new Error("Ride recording requires the Android app.");
 }

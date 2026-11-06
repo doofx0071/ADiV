@@ -20,7 +20,7 @@ Convex agent skills for common tasks can be installed by running
 
 # AdiV — ADV160 Motorcycle Maintenance Tracker
 
-Personal, single-bike (Honda ADV160 RoadSync) maintenance tracker: no auth, mobile-responsive web app. Next.js App Router frontend, Convex backend. Currency PHP, units km/liters. Full product spec: `.sisyphus/plans/adiv-maintenance-tracker.md`.
+Personal, single-bike (Honda ADV160 RoadSync) maintenance tracker: no auth, mobile-responsive web app. Next.js App Router frontend, Convex backend. Currency PHP, units km/liters.
 
 ## Commands
 
@@ -80,3 +80,11 @@ backend state.
 
 - Workspace path contains spaces (`code ni cris`) — always quote paths in shell commands.
 - Windows + Git Bash environment; `next.config.ts` pins `turbopack.root` to the project directory.
+
+## T3 multi-agent routing
+
+- Keep `codex` as lead. For substantial or cross-module development, difficult debugging, major refactors, or high-risk changes, complete the required Antigravity checkpoint in `.ai/ROUTING.md` through explicit T3 delegation; T3 does not start workers or switch the lead model automatically.
+- Read `.ai/ROUTING.md` for model routing, delegation limits, usage controls, and permission boundaries.
+- When assigned a logical role, read its matching file under `.ai/agents/` before acting. These are reusable instructions; T3 does not automatically register them as executable agents.
+- Include the logical role and relevant instructions in each self-contained `delegate_task` brief. T3 child tasks use generic tool roles.
+- Report the routing decision, actual provider/model/task IDs, and a concrete reason whenever a required checkpoint is skipped.

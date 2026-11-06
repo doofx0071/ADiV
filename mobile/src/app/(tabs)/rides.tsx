@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, View } from "react-native";
 import { AppText as Text } from "@/components/app-text";
 import { router, useFocusEffect } from "expo-router";
@@ -10,7 +10,7 @@ import { AppButton, Card, EmptyState, Page, SectionTitle } from "@/components/ui
 import { dateLabel, km, rideTimeLabel } from "@/lib/format";
 import { useAppTheme } from "@/lib/theme";
 import { deleteSavedLocalRide, listSavedLocalRides } from "@/lib/local-ride-store";
-import { RIDE_MODES, type ActiveRideState, type LocalRideRecord, type RideMode } from "@/lib/ride-model";
+import { activeRideElapsedMs, RIDE_MODES, type ActiveRideState, type LocalRideRecord, type RideMode } from "@/lib/ride-model";
 import { getActiveRideMode, loadActiveRide, reconcileActiveRecording } from "@/lib/ride-tracker";
 import { trackDistanceKm } from "../../../../lib/geo";
 import { shareLocalRideAsGpx } from "@/lib/gpx-export";
@@ -39,7 +39,14 @@ export default function RidesScreen() {
   const [deleteError, setDeleteError] = useState("");
   const [exportingRideId, setExportingRideId] = useState<string | null>(null);
   const [gpxError, setGpxError] = useState("");
+  const [now, setNow] = useState(() => Date.now());
   const { colors } = useAppTheme();
+
+  useEffect(() => {
+    if (activeRide?.status !== "recording") return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [activeRide?.runStartedAt, activeRide?.status]);
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -112,6 +119,7 @@ export default function RidesScreen() {
       : activeRide?.interrupted
         ? "Recovered after the app stopped"
         : "Paused on this device";
+  const elapsedActiveRideMs = activeRide ? activeRideElapsedMs(activeRide, now) : 0;
 
   return (
     <Page eyebrow="Your rides" title="Rides" subtitle={`${rideCount} ${rideCount === 1 ? "ride" : "rides"} logged`}>
@@ -129,11 +137,8 @@ export default function RidesScreen() {
               </View>
             </View>
             <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>
-              {km(trackDistanceKm(activeRide.points))} recorded · {Math.floor(activeRide.elapsedMs / 60_000)} min · GPS points remain on this device
+              {km(trackDistanceKm(activeRide.points))} recorded · {Math.floor(elapsedActiveRideMs / 60_000)}m {Math.floor((elapsedActiveRideMs % 60_000) / 1000)}s
             </Text>
-            {activeRide.interrupted && activeMode === "navigateAndRecord" ? (
-              <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>The saved track is recoverable. Choose a destination again to restart guidance.</Text>
-            ) : null}
             <AppButton
               label={activeRide.status === "recording" ? "Return to active ride" : activeRide.status === "completed" ? "Open ride summary" : "Resume this ride"}
               onPress={() => router.push({ pathname: "/record", params: { mode: activeMode ?? "recordOnly" } })}
@@ -148,7 +153,7 @@ export default function RidesScreen() {
         <View style={{ padding: 16, gap: 14 }}>
           <View style={{ gap: 4 }}>
             <Text style={{ color: colors.foreground, fontWeight: "900", fontSize: 17 }}>Start a ride</Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>Choose how you want to ride. Both modes save the same local GPS track.</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 19 }}>Choose a recording mode.</Text>
             {activeRide ? <Text style={{ color: colors.primary, fontSize: 12, lineHeight: 18, fontWeight: "700" }}>Resume or save the active ride above before starting another.</Text> : null}
           </View>
           <View style={{ padding: 12, gap: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background }}>
@@ -179,14 +184,13 @@ export default function RidesScreen() {
             onPress={() => router.push({ pathname: "/log/[type]", params: { type: "ride" } })}
             icon={<Pencil size={16} color={colors.primary} />}
           />
-          <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>Forgot to record, or low battery? A manual entry still updates the bike odometer.</Text>
         </View>
       </Card>
 
       <SectionTitle title="All rides" />
       {gpxError ? <Text style={{ color: colors.danger, fontSize: 13 }}>{gpxError}</Text> : null}
       <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Swipe left to edit · swipe right to delete</Text>
-      {rides === undefined ? <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Cloud rides are unavailable. Saved local tracks remain available below.</Text> : null}
+      {rides === undefined ? <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Cloud rides are unavailable. Local rides remain listed here.</Text> : null}
       {cloudRides.map((ride) => {
         const localTrack = ride.clientRideId ? localRides.find((local) => local.id === ride.clientRideId) : undefined;
         return (
@@ -244,7 +248,7 @@ export default function RidesScreen() {
                 >
                   <Text style={{ color: colors.primary, fontWeight: "800", fontSize: 13 }}>Share actual GPS activity →</Text>
                 </Pressable>
-              ) : ride.route ? <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>This cloud ride has no local GPS points for activity sharing.</Text> : null}
+              ) : null}
               {localTrack ? (
                 <AppButton
                   label="Export local GPS track (GPX)"
@@ -261,7 +265,6 @@ export default function RidesScreen() {
 
       {localOnly.length > 0 ? (
         <>
-          <SectionTitle title="Local GPS tracks" />
           {localOnly.map((ride) => {
             return (
               <Card key={ride.id}>
@@ -274,7 +277,7 @@ export default function RidesScreen() {
                     </View>
                   </View>
                   <Text style={{ color: colors.primary, fontWeight: "800", fontSize: 13 }}>
-                    {ride.demoMode ? "Sample ride · stays on this device" : ride.syncState === "synced" ? "Summary synced · GPS track stays on this device" : "Pending summary sync · GPS track stays on this device"}
+                    {ride.demoMode ? "Sample ride" : ride.syncState === "synced" ? "Summary synced" : "Pending sync"}
                   </Text>
                   <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{km(ride.summary.startOdometer)} → {km(ride.summary.endOdometer)} odometer</Text>
                   <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
@@ -291,7 +294,7 @@ export default function RidesScreen() {
         </>
       ) : null}
 
-      {rides !== undefined && cloudRides.length === 0 && personalLocalOnly.length === 0 ? <EmptyState title="No rides yet" body="Record a GPS ride or log one manually to start building your riding history." action={<AppButton label="Log your first ride" onPress={() => router.push({ pathname: "/log/[type]", params: { type: "ride" } })} />} /> : null}
+      {rides !== undefined && cloudRides.length === 0 && localOnly.length === 0 ? <EmptyState title="No rides yet" body="Record a GPS ride or log one manually to start building your riding history." action={<AppButton label="Log your first ride" onPress={() => router.push({ pathname: "/log/[type]", params: { type: "ride" } })} />} /> : null}
 
       <Modal
         visible={deleteTarget !== null}

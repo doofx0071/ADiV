@@ -23,6 +23,9 @@ import { configureNotificationHandler, subscribeToMaintenanceNotification } from
 import { NotificationSync } from "@/components/notification-sync";
 import { WidgetSync } from "@/components/widget-sync";
 import { RideSyncManager } from "@/components/ride-sync-manager";
+// Register background location delivery before Expo Router starts navigation,
+// including launches where Android wakes the app only to deliver a GPS task.
+import "@/lib/ride-tracker";
 import { RootErrorBoundary } from "@/components/root-error-boundary";
 import "@/widgets/widget-task-handler";
 

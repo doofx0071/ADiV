@@ -24,6 +24,7 @@ export const getRides = query({
       route: v.optional(v.string()),
       trackedDistance: v.optional(v.number()),
       maxSpeedKmh: v.optional(v.number()),
+      updateCurrentOdometer: v.optional(v.boolean()),
       notes: v.optional(v.string()),
     })
   ),
@@ -59,8 +60,8 @@ export const getRideStats = query({
 
 /**
  * Log a ride.
- * Calculates distance from odometer readings and keeps the bike odometer
- * in sync so the reminder engine never sees stale readings.
+ * Calculates distance from odometer readings and optionally advances the bike
+ * odometer when a GPS estimate is accepted as current.
  */
 export const logRide = mutation({
   args: {
@@ -77,6 +78,7 @@ export const logRide = mutation({
     route: v.optional(v.string()),
     trackedDistance: v.optional(v.number()),
     maxSpeedKmh: v.optional(v.number()),
+    updateCurrentOdometer: v.optional(v.boolean()),
     notes: v.optional(v.string()),
   },
   returns: v.id("rides"),
@@ -112,7 +114,11 @@ export const logRide = mutation({
       if (args.startAt! > Date.now() || args.endAt! > Date.now()) {
         throw new Error("Ride times cannot be in the future.");
       }
-      durationMinutes = Math.round((args.endAt! - args.startAt!) / 60_000);
+      // A GPS ride may include manual pauses. Preserve the active duration sent
+      // by the recorder; derive from wall-clock times only for older/manual callers.
+      if (durationMinutes === undefined) {
+        durationMinutes = Math.round((args.endAt! - args.startAt!) / 60_000);
+      }
     }
     if (durationMinutes === undefined || !Number.isFinite(durationMinutes) || durationMinutes <= 0 || durationMinutes > 24 * 60) {
       throw new Error("Ride duration must be between 1 minute and 24 hours.");
@@ -122,6 +128,8 @@ export const logRide = mutation({
     // it from the odometer pair.
     const isTracked = args.source === "gps" && args.trackedDistance !== undefined;
     const distance = isTracked ? args.trackedDistance! : args.endOdometer - args.startOdometer;
+    // Keep existing manual ride logging behavior; GPS recorder can opt out.
+    const updateCurrentOdometer = args.updateCurrentOdometer ?? true;
 
     const ride = {
       startOdometer: args.startOdometer,
@@ -135,6 +143,7 @@ export const logRide = mutation({
       ...(args.route !== undefined ? { route: args.route } : {}),
       ...(args.trackedDistance !== undefined ? { trackedDistance: args.trackedDistance } : {}),
       ...(args.maxSpeedKmh !== undefined ? { maxSpeedKmh: args.maxSpeedKmh } : {}),
+      updateCurrentOdometer,
       ...(args.startAt !== undefined ? { startAt: args.startAt } : {}),
       ...(args.endAt !== undefined ? { endAt: args.endAt } : {}),
     };
@@ -153,6 +162,7 @@ export const logRide = mutation({
           existing.source === ride.source &&
           existing.trackedDistance === ride.trackedDistance &&
           existing.maxSpeedKmh === ride.maxSpeedKmh &&
+          (existing.updateCurrentOdometer ?? true) === updateCurrentOdometer &&
           existing.notes === ride.notes;
         if (!samePayload) throw new Error("Client ride ID was already used for different ride data.");
         return existing._id;
@@ -162,7 +172,7 @@ export const logRide = mutation({
     const rideId = await ctx.db.insert("rides", ride);
 
     const bike = (await ctx.db.query("bike").take(1))[0];
-    if (bike && args.endOdometer > bike.currentOdometer) {
+    if (updateCurrentOdometer && bike && args.endOdometer > bike.currentOdometer) {
       await ctx.db.patch(bike._id, { currentOdometer: args.endOdometer });
     }
 

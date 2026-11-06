@@ -17,6 +17,8 @@ export interface ActiveRideState {
   elapsedMs: number;
   status: Exclude<PersistedRideStatus, "saved">;
   interrupted: boolean;
+  /** Set only for the current reconciliation result when native tracking could not restart. */
+  trackingIssue?: string;
 }
 
 export interface RideSummaryPayload {
@@ -30,6 +32,8 @@ export interface RideSummaryPayload {
   source: "gps";
   trackedDistance: number;
   maxSpeedKmh: number;
+  /** Whether this ride's GPS estimate should advance the bike's confirmed odometer. */
+  updateCurrentOdometer?: boolean;
   notes?: string;
 }
 
@@ -58,9 +62,22 @@ export function restoredRecorderPhase(
   interrupted: boolean,
 ): RecorderPhase {
   if (status === "completed") return "summary";
+  // The persisted recording state is authoritative across route and app remounts.
+  // A missing GPS service is recovered by the tracker without requiring Resume.
+  if (status === "recording") return "recording";
   if (interrupted) return "recovered";
-  if (status === "paused") return "paused";
-  return "recovered";
+  return "paused";
+}
+
+export function activeRideElapsedMs(
+  ride: Pick<ActiveRideState, "elapsedMs" | "runStartedAt" | "status">,
+  now = Date.now(),
+): number {
+  return Math.max(0, ride.elapsedMs) + (
+    ride.status === "recording" && ride.runStartedAt !== null
+      ? Math.max(0, now - ride.runStartedAt)
+      : 0
+  );
 }
 
 export function buildRideSummaryPayload(input: {
@@ -70,6 +87,7 @@ export function buildRideSummaryPayload(input: {
   startedAt: number;
   endedAt: number;
   elapsedMs: number;
+  updateCurrentOdometer?: boolean;
   notes?: string;
 }): RideSummaryPayload {
   const trackedDistance = trackDistanceKm(input.points);
@@ -85,6 +103,7 @@ export function buildRideSummaryPayload(input: {
     source: "gps",
     trackedDistance,
     maxSpeedKmh: trackMaxSpeedKmh(input.points),
+    updateCurrentOdometer: input.updateCurrentOdometer ?? false,
     ...(input.notes?.trim() ? { notes: input.notes.trim() } : {}),
   };
 }

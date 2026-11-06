@@ -1,6 +1,11 @@
 import * as Location from "expo-location";
-import * as TaskManager from "expo-task-manager";
-import { Location as BackgroundLocation, LocationProfile, LocationUpdatesHandle, type Position } from "expo-location/next";
+import {
+  defineLocationTask,
+  Location as BackgroundLocation,
+  LocationProfile,
+  LocationUpdatesHandle,
+  type Position,
+} from "expo-location/next";
 import { Platform } from "react-native";
 import { stopMapboxGuidance } from "./mapbox-bridge";
 import { shouldAcceptPoint, type TrackPoint } from "../../../lib/geo";
@@ -8,12 +13,11 @@ import { trackDistanceKm, trackMaxSpeedKmh } from "./shared";
 import {
   clearRideNotification,
   requestRideNotificationPermission,
-  updateRideNotification,
-  type RideNotificationAction,
 } from "./ride-notification";
 import {
   appendRidePoints,
   changeActiveRideStatus,
+  continueRecordingAfterTrackingGap,
   getActiveRideMode as getStoredActiveRideMode,
   setActiveRideMode,
   discardActiveRide,
@@ -21,15 +25,17 @@ import {
   recoverInterruptedActiveRide,
   startOrResumeRide,
 } from "./local-ride-store";
-import type { ActiveRideState, RideMode } from "./ride-model";
+import { activeRideElapsedMs, type ActiveRideState, type RideMode } from "./ride-model";
 
-export const LOCATION_TASK_NAME = "adiv-ride-recorder";
+const LEGACY_LOCATION_TASK_NAME = "adiv-ride-recorder";
+export const LOCATION_TASK_NAME = "adiv-ride-recorder-v2";
 export const MAX_ACCURACY_METERS = 50;
+const RIDE_NOTIFICATION_REFRESH_INTERVAL_MS = 10_000;
 const locationUpdates = new LocationUpdatesHandle(LOCATION_TASK_NAME)
   .withProfile(LocationProfile.AUTOMOTIVE_NAVIGATION);
 const BACKGROUND_SESSION_NOTIFICATION = {
-  notificationTitle: "ADiV · Recording ride",
-  notificationBody: "Ride tracking is active. Open ADiV to pause or end.",
+  notificationTitle: "ADiV · Ride recording",
+  notificationBody: "Ride tracking is active.",
   notificationColor: 0xe62025,
   stopOnTaskRemoved: false,
 };
@@ -42,30 +48,61 @@ type RideLocationFix = {
   ts: number;
 };
 type LegacyLocationBatch = { locations?: Location.LocationObject[] };
-type RideTaskData = Position | LegacyLocationBatch | Location.LocationObject[];
+type RideTaskData = Position | LegacyLocationBatch | Location.LocationObject | Location.LocationObject[];
 
 let activeRide: ActiveRideState | null = null;
 let buffer: TrackPoint[] = [];
 let loaded = false;
 let loading: Promise<ActiveRideState | null> | null = null;
 let reconciling: Promise<ActiveRideState | null> | null = null;
+let lastRideNotificationUpdateAt = 0;
+let lastRideNotificationKey = "";
 const listeners = new Set<(point: TrackPoint) => void>();
 
-function notificationElapsedMs(ride: ActiveRideState): number {
-  return ride.elapsedMs + (ride.status === "recording" && ride.runStartedAt ? Math.max(0, Date.now() - ride.runStartedAt) : 0);
+function formatRideDuration(milliseconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return hours > 0
+    ? `${hours}h ${String(minutes).padStart(2, "0")}m`
+    : `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+}
+
+function foregroundNotificationBody(ride: ActiveRideState, now = Date.now()): string {
+  const elapsedMs = activeRideElapsedMs(ride, now);
+  const distanceKm = trackDistanceKm(ride.points);
+  const averageSpeedKmh = elapsedMs > 0 ? distanceKm / (elapsedMs / 3_600_000) : 0;
+  const maxSpeedKmh = trackMaxSpeedKmh(ride.points);
+  return `Ride active · ${formatRideDuration(elapsedMs)} · ${distanceKm.toFixed(2)} km · avg ${averageSpeedKmh.toFixed(1)} km/h · max ${maxSpeedKmh > 0 ? `${maxSpeedKmh.toFixed(1)} km/h` : "—"}`;
 }
 
 async function refreshRideNotification(ride: ActiveRideState | null = activeRide): Promise<void> {
   if (!ride || (ride.status !== "recording" && ride.status !== "paused")) return;
-  await updateRideNotification({
-    phase: ride.status,
-    elapsedMs: notificationElapsedMs(ride),
-    distanceKm: trackDistanceKm(ride.points),
-    averageSpeedKmh: notificationElapsedMs(ride) > 0
-      ? trackDistanceKm(ride.points) / (notificationElapsedMs(ride) / 3_600_000)
-      : 0,
-    maxSpeedKmh: trackMaxSpeedKmh(ride.points),
-  });
+  const now = Date.now();
+  const notificationKey = `${ride.id}:${ride.status}`;
+  if (notificationKey === lastRideNotificationKey
+    && now - lastRideNotificationUpdateAt < RIDE_NOTIFICATION_REFRESH_INTERVAL_MS) return;
+
+  lastRideNotificationKey = notificationKey;
+  lastRideNotificationUpdateAt = now;
+  if (Platform.OS === "android" && ride.status === "recording") {
+    try {
+      // SDK 58 re-posts the promoted location foreground notification with updated options.
+      // Source: https://docs.expo.dev/versions/v58.0.0/sdk/location-next/#locationensurebackgroundsessionstarted
+      await BackgroundLocation.ensureBackgroundSessionStarted({
+        ...BACKGROUND_SESSION_NOTIFICATION,
+        notificationBody: foregroundNotificationBody(ride, now),
+      });
+    } catch {
+      // If Android has stopped the service, foreground reconciliation will restart it.
+    }
+  }
+}
+
+export async function refreshActiveRideNotification(): Promise<void> {
+  const ride = await loadActiveRide();
+  await refreshRideNotification(ride);
 }
 
 export function subscribeToTrack(listener: (point: TrackPoint) => void): () => void {
@@ -105,33 +142,37 @@ export function reconcileActiveRecording(): Promise<ActiveRideState | null> {
       return ride;
     }
     if (await locationTaskIsRunning()) {
-      await ensureLocationTaskStarted();
-      return { ...ride, points: [...buffer] };
+      try {
+        await ensureLocationTaskStarted();
+        return { ...ride, points: [...buffer] };
+      } catch (error) {
+        const interrupted = await markTrackingFailure(error);
+        await refreshRideNotification(interrupted);
+        return interrupted;
+      }
     }
 
-    // The native service is gone. Close at the last persisted GPS sample so
-    // time without location updates is not counted as recorded ride time.
-    ride = await recoverInterruptedActiveRide();
+    // A missing GPS registration is a gap in the track, not a user pause.
+    // Keep the ride active, account for elapsed time, and begin a new GPS run.
+    ride = await continueRecordingAfterTrackingGap();
     if (!ride) return null;
     activeRide = ride;
     buffer = [...ride.points];
 
     const permission = await Location.getForegroundPermissionsAsync();
     if (permission.status !== "granted") {
-      await refreshRideNotification(ride);
-      return ride;
+      return markTrackingFailure(new Error("Location permission was removed. Allow ADiV to use location while recording is active."));
     }
-
-    ride = await startOrResumeRide();
-    activeRide = ride;
-    buffer = [...ride.points];
+    if (Platform.OS === "android") {
+      const backgroundPermission = await Location.getBackgroundPermissionsAsync();
+      if (backgroundPermission.status !== "granted") {
+        return markTrackingFailure(new Error("Allow ADiV to use location all the time so recording can continue when the app is in the background."));
+      }
+    }
     try {
       await ensureLocationTaskStarted();
-    } catch {
-      activeRide = await changeActiveRideStatus("paused");
-      buffer = activeRide ? [...activeRide.points] : [];
-      await refreshRideNotification(activeRide);
-      return activeRide;
+    } catch (error) {
+      return markTrackingFailure(error);
     }
     await refreshRideNotification(ride);
     return { ...ride, points: [...buffer] };
@@ -139,6 +180,22 @@ export function reconcileActiveRecording(): Promise<ActiveRideState | null> {
     reconciling = null;
   });
   return reconciling;
+}
+
+async function markTrackingFailure(error: unknown): Promise<ActiveRideState | null> {
+  // Keep the persisted ride recording. Returning to the app retries the service;
+  // only explicit Pause or End actions change this ride's recording state.
+  const current = await loadStoredActiveRide();
+  activeRide = current;
+  buffer = current ? [...current.points] : [];
+  if (!current) return null;
+  await refreshRideNotification(current);
+  return {
+    ...current,
+    trackingIssue: error instanceof Error
+      ? error.message
+      : "Android could not restart background GPS tracking. The ride remains active and ADiV will retry when it returns to the foreground.",
+  };
 }
 
 export async function getActiveRideMode(): Promise<RideMode | null> {
@@ -154,8 +211,8 @@ async function stopLocationTask(): Promise<void> {
       // A stopped or unavailable task is already in the desired state.
     }
     try {
-      if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME)) {
-        await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+      if (await Location.hasStartedLocationUpdatesAsync(LEGACY_LOCATION_TASK_NAME)) {
+        await Location.stopLocationUpdatesAsync(LEGACY_LOCATION_TASK_NAME);
       }
     } catch {
       // Clean up registrations left by an older app version.
@@ -174,13 +231,24 @@ async function stopLocationTask(): Promise<void> {
   } catch {
     // A stopped or unavailable task is already in the desired state.
   }
+  try {
+    if (await Location.hasStartedLocationUpdatesAsync(LEGACY_LOCATION_TASK_NAME)) {
+      await Location.stopLocationUpdatesAsync(LEGACY_LOCATION_TASK_NAME);
+    }
+  } catch {
+    // Clean up registrations left by an older app version.
+  }
 }
 
 async function locationTaskIsRunning(): Promise<boolean> {
   if (Platform.OS === "web") return false;
   if (Platform.OS === "android") {
     try {
-      if (await locationUpdates.hasStarted()) return true;
+      const registered = await locationUpdates.hasStarted();
+      const session = BackgroundLocation.getBackgroundSessionStatus();
+      // Task status is process-local in SDK 58. A registered task plus a promoted
+      // foreground service is the durable Android state across app restarts.
+      return registered && session.unthrottled;
     } catch {
       // Continue by checking the legacy Expo Location task.
     }
@@ -211,17 +279,43 @@ function locationTaskOptions() {
 async function ensureLocationTaskStarted(): Promise<void> {
   if (Platform.OS === "web") return;
   if (Platform.OS === "android") {
-    // Remove a task registered by the previous Expo Location API before
-    // switching to the SDK 58 handle that survives JS process termination.
+    // Migrate only the old task name. The SDK 58 handle has a distinct name so
+    // the legacy API cannot unregister the active recorder task.
     try {
-      if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME)) {
-        await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+      if (await Location.hasStartedLocationUpdatesAsync(LEGACY_LOCATION_TASK_NAME)) {
+        await Location.stopLocationUpdatesAsync(LEGACY_LOCATION_TASK_NAME);
       }
     } catch {
       // No legacy task needs migration.
     }
-    await BackgroundLocation.ensureBackgroundSessionStarted(BACKGROUND_SESSION_NOTIFICATION);
-    if (!await locationUpdates.hasStarted()) await locationUpdates.start();
+    const sessionNotification = activeRide
+      ? { ...BACKGROUND_SESSION_NOTIFICATION, notificationBody: foregroundNotificationBody(activeRide) }
+      : BACKGROUND_SESSION_NOTIFICATION;
+    await BackgroundLocation.ensureBackgroundSessionStarted(sessionNotification);
+    let session = BackgroundLocation.getBackgroundSessionStatus();
+    const promoteBy = Date.now() + 2_000;
+    while (!session.unthrottled && Date.now() < promoteBy) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      session = BackgroundLocation.getBackgroundSessionStatus();
+    }
+    if (!session.unthrottled) {
+      throw new Error("Android did not start the ride location foreground service. Check ADiV's location permissions, then resume the ride.");
+    }
+
+    let registered = await locationUpdates.hasStarted();
+    let taskStatus = locationUpdates.status();
+    const retryProvider = registered && taskStatus.lastError !== null;
+    if (retryProvider) {
+      await locationUpdates.stop();
+      registered = false;
+    }
+    if (!registered) {
+      await locationUpdates.start();
+      taskStatus = locationUpdates.status();
+      if (!taskStatus.isRunning) {
+        throw new Error(taskStatus.lastError ?? "Android registered the ride task but did not start GPS updates. Check location services and resume the ride.");
+      }
+    }
     return;
   }
   if (await locationTaskIsRunning()) return;
@@ -261,47 +355,44 @@ async function ingestLocations(locations: RideLocationFix[]): Promise<void> {
 }
 
 if (Platform.OS !== "web") {
-  TaskManager.defineTask<RideTaskData>(LOCATION_TASK_NAME, async ({ data, error }) => {
-    if (error || !data) return;
-    if (Array.isArray(data)) {
-      const legacyLocations = data as Location.LocationObject[];
-      await ingestLocations(legacyLocations.map((location) => ({
-        lat: location.coords.latitude,
-        lon: location.coords.longitude,
-        accuracy: location.coords.accuracy,
-        speed: location.coords.speed,
-        ts: location.timestamp,
-      })));
-      return;
-    }
-    if ("coordinates" in data) {
-      await ingestLocations([{
-        lat: data.coordinates.latitude,
-        lon: data.coordinates.longitude,
-        accuracy: data.horizontalAccuracy,
-        speed: data.speed,
-        ts: data.timestamp,
-      }]);
-      return;
-    }
-    if ("coords" in data) {
-      const legacyLocation = data as Location.LocationObject;
-      await ingestLocations([{
-        lat: legacyLocation.coords.latitude,
-        lon: legacyLocation.coords.longitude,
-        accuracy: legacyLocation.coords.accuracy,
-        speed: legacyLocation.coords.speed,
-        ts: legacyLocation.timestamp,
-      }]);
-      return;
-    }
-    await ingestLocations((data as LegacyLocationBatch).locations?.map((location) => ({
-      lat: location.coords.latitude,
-      lon: location.coords.longitude,
-      accuracy: location.coords.accuracy,
-      speed: location.coords.speed,
-      ts: location.timestamp,
-    })) ?? []);
+  defineLocationTask({
+    taskName: LOCATION_TASK_NAME,
+    onPosition: async (position) => {
+      const data = position as unknown as RideTaskData;
+      if (Array.isArray(data)) {
+        await ingestLocations(data.map((location) => ({
+          lat: location.coords.latitude,
+          lon: location.coords.longitude,
+          accuracy: location.coords.accuracy,
+          speed: location.coords.speed,
+          ts: location.timestamp,
+        })));
+      } else if ("coordinates" in data) {
+        await ingestLocations([{
+          lat: data.coordinates.latitude,
+          lon: data.coordinates.longitude,
+          accuracy: data.horizontalAccuracy,
+          speed: data.speed,
+          ts: data.timestamp,
+        }]);
+      } else if ("coords" in data) {
+        await ingestLocations([{
+          lat: data.coords.latitude,
+          lon: data.coords.longitude,
+          accuracy: data.coords.accuracy,
+          speed: data.coords.speed,
+          ts: data.timestamp,
+        }]);
+      } else {
+        await ingestLocations(data.locations?.map((location) => ({
+          lat: location.coords.latitude,
+          lon: location.coords.longitude,
+          accuracy: location.coords.accuracy,
+          speed: location.coords.speed,
+          ts: location.timestamp,
+        })) ?? []);
+      }
+    },
   });
 }
 
@@ -337,8 +428,9 @@ export async function startRecording(mode?: RideMode): Promise<ActiveRideState> 
   try {
     await ensureLocationTaskStarted();
   } catch (error) {
-    activeRide = await changeActiveRideStatus("paused");
+    activeRide = await recoverInterruptedActiveRide();
     if (activeRide) buffer = [...activeRide.points];
+    await refreshRideNotification(activeRide);
     throw error;
   }
   await refreshRideNotification(ride);
@@ -383,13 +475,6 @@ export async function discardRecording(): Promise<void> {
   buffer = [];
   loaded = true;
   await clearRideNotification();
-}
-
-export async function handleRideNotificationAction(action: RideNotificationAction): Promise<void> {
-  await loadActiveRide();
-  if (action === "pause" && activeRide?.status === "recording") await pauseRecording();
-  else if (action === "resume" && (activeRide?.status === "paused" || activeRide?.interrupted)) await startRecording();
-  else if (action === "end" && (activeRide?.status === "recording" || activeRide?.status === "paused")) await finishRecording();
 }
 
 /** One-shot current position for online or offline route planning. */
